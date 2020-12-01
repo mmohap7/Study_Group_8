@@ -1,0 +1,158 @@
+---
+title: "StartUp_DataVisualisation"
+author: "Josephine Haag"
+date: "`r Sys.Date()`"
+output: 
+    html_document:
+      number_sections: true
+      highlight: haddock
+      theme: spacelab
+      toc: yes
+      toc_depth: 2
+      toc_float:
+        collapsed: false
+      fontzize: 10pt
+---
+
+# Introduction
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(mice) 
+library(VIM)
+library(dplyr)
+library(Hmisc)
+library(janitor)
+library(here)
+library(skimr)
+
+```
+<style>
+div.navy1 { background-color:#686868; border-radius: 5px; padding: 20px; border-style: groove; color: #ffffff;}
+
+</style>
+
+<div><img src="BBC.jpg" width="200px" align="right"></div>
+
+```{r setup2, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data loading
+```{r clean data}
+startup_data <- read_csv("data/startup data.csv") 
+```
+
+```{r}
+glimpse(startup_data)
+
+head(startup_data)
+
+describe(startup_data) 
+
+# add to new data frame to process and clean the data
+startup_data_process <- startup_data
+```
+
+# Data cleaning
+
+After skimming the data to get a good overview, we will clean the data. First, we will check for missing values and duplicates.
+
+In this step 
+
+i) Remove empty columns and rows and duplicates.
+
+ii) Check how many values are missing.
+
+iii) Correct data types. 
+
+iv) Check max, min, and distribution of numerical values.
+
+iii) Names and distributions of categorical values.
+```{r clean names}
+startup_data_process <- clean_names(startup_data_process)  
+```
+
+
+## Duplicates
+```{r,echo=FALSE}
+# remove empty columns and rows
+startup_data_process <- remove_empty(startup_data_process, which = c("rows","cols"))
+
+# check for duplicates
+dupes <- startup_data_process %>% 
+  get_dupes(object_id)
+
+dupes
+
+```
+
+There is one duplicate for the start-up "Redwood Systems", which have slightly different coordinates. Perhaps, they have moved locations but since they are both in California and still have the same zip code we will just remove the row that does not have an exact address. 
+
+```{r remove duplicate}
+# removing the duplicate row
+startup_data_process <- startup_data_process[ !(startup_data_process$unnamed_0 == 505), ]
+
+# checking if there still are duplicates
+dupes <- startup_data_process %>% 
+  get_dupes(object_id)
+
+dupes
+
+```
+
+## Missing data
+After there are now more duplicates, we will start dealing with missing data.
+
+```{r}
+# investigate the missing values
+describe(startup_data_process)    
+
+# we use the md.pattern function from MICE package
+md.pattern(startup_data_process, rotate.names = T)
+```
+
+There are some missing values for 
+- Unnamed_6: this is a more detailed address, we will delete this column
+- closed_at 
+- age_first_milestone_year 
+- age_last_milestone_year
+- state_code.1
+
+```{r missing values}
+# delete unnamed_6
+startup_data_process <- startup_data_process %>%
+  select(-unnamed_6)
+
+startup_data_process <- 
+
+
+# replace the missing state, which is CA (after research)
+startup_data_process$state_code.1 <- ifelse(is.na(startup_data$state_code.1), 'CA', startup_data_process$state_code.1)
+
+startup_data_process %>%
+  filter(is.na(state_code.1))
+```
+
+
+
+## Data types
+Next, we will look at the data types
+```{r date data type}
+# converting the dates into data format
+startup_data %>%
+  mutate(founded_at = mdy(founded_at), 
+         closed_at = mdy(closed_at), 
+         first_funding_at = mdy(first_funding_at), 
+         last_funding_at = mdy(last_funding_at))
+```
+
+```{r}
+# make status into a dummy variable for logistic regression (do we need this now?)
+startup_data_process <- startup_data_process %>%
+  mutate(status_01 = if_else(status == "acquired", 1, 0))
+```
+
+
