@@ -15,6 +15,27 @@ output:
 ---
 
 # Introduction
+What predicts start-up success? As six entrepreneurial-minded students from LBS, we wanted to understand better how start-up success can be predicted. Which industry receive higher fundings and which locations contribute to a higher probability of being acquired?
+We would love to start our own venture in the US and find out more about trends in the start-up world there and how will can increases our chances of being successful.
+
+In order to find out what we should do and how we should get there we will look into different aspects of our new venture called "Kostis" (too much? haha).
+Firstly, we will investigate the category...
+Secondly, we will look at location
+Lastly, at time and when we should plan to reach our first milestones and secure funding rounds. 
+In the end we will use the insights gained from this and build a prediction model for our venture "Kostis"
+
+##### Notes
+Notes
+- category: what is the most successful category? JUN, MELONICA
+- location: where: map: Draw a startups map, identifying the next Silicon Valley. RICK, MEHDI
+    Idea Josi: Maybe we can also compare it to population ? Startups per population?
+- time PEIJUN, JOSI
+    when do we have to reach our milestones
+    when do we have to our first/second/third funding round as well as funding amount
+    
+=> Build a model with it, to get highest success in start-up world in the US
+
+Overall theme & color scheme: 
 
 The goal of this report is to   
   - Trace the startups funding trend in recent years.
@@ -34,7 +55,11 @@ library(Hmisc)
 library(janitor)
 library(here)
 library(skimr)
-library(rsample) 
+library(rsample)
+library(readr)
+library(sf)
+remotes::install_github("UrbanInstitute/urbnmapr")
+library(urbnmapr)
 ```
 <style>
 div.navy1 { background-color:#686868; border-radius: 5px; padding: 20px; border-style: groove; color: #ffffff;}
@@ -146,18 +171,34 @@ Other ones as well?
 
 ```{r date data type}
 # converting the dates into data format
-startup_data_process %>%
+startup_data_process <- startup_data_process %>%
   mutate(founded_at = mdy(founded_at), 
          closed_at = mdy(closed_at), 
          first_funding_at = mdy(first_funding_at), 
          last_funding_at = mdy(last_funding_at))
 ```
 
-iv) Check max, min, and distribution of numerical values.
 
-iii) Names and distributions of categorical values.
+
+## Create new variables 
+create age in year
+create year founded (extract from day)
+create area variable (West coast, East Cost etc)
+create
 ```{r}
-# make a new category variables
+# create age
+startup_data_process2 <- startup_data_process %>%
+  mutate(age_Dec2020 = floor(age_calc(startup_data_process$founded_at, units = "years")))
+           age_calc(dob, enddate = Sys.Date(), units = "years", precise = TRUE))
+  
+  
+# create year founded  
+startup_data_process <- startup_data_process %>% 
+  mutate(year_founded = year(founded_at))
+```
+
+```{r}
+# make a new category variables -> maybe use top 6 and rest into others 
 startup_data_process <- startup_data_process %>% 
   mutate(category1 = ifelse ((category_code != 'software' & 
                                 category_code!= 'web' & 
@@ -172,37 +213,8 @@ startup_data_process <- startup_data_process %>%
                              startup_data_process$category_code))
 ```
 
-```{r}
-# look at the start-ups per state
-startup_data_process %>% 
-  group_by(state_code_1) %>%
-  summarise(count_state = n()) %>%
-  arrange(desc(count_state))
 
-# we have 35 states with startups with highest number of startups in California
-
-startup_data_process %>%
-  group_by(category_code) %>% 
-  summarise(count_category = n()) %>%
-  arrange(desc(count_category))
-
-# we have 35 categories of startups  with the highest number of startups in software
-
-startup_data_process %>%
-  group_by(state_code_1,category_code) %>%
-  summarise(count_state_category=n())
-```
-
-```{r}
-# startups according to funding round
-startup_data_process %>% 
-  group_by(funding_rounds) %>% 
-  summarise(count_funding=n())
-```
-
-
-
-
+After the data cleaning we will assign it back to the original data set and then start our exploratory data analysis.
 ```{r}
 # assign the cleaned data back to the original data set so that we can work
 startup_data <- startup_data_process
@@ -211,31 +223,270 @@ startup_data <- startup_data_process
 
 # Exploratory data analaysis
 
+## Check numerical variables
+iv) Check max, min, and distribution of numerical values.
+- some ages are negative -> what do we do with these? (either make 0 or delete) -> most differences are very small
+make those with less than a month 0, others delete
+
+### Funding Amount
+First, we look into the distribution of the funding amount. It is highly right-skewed, which is why we take the log
 ```{r}
+startup_data %>% 
+  ggplot(aes(
+    x = funding_total_usd
+  )) +
+    geom_boxplot()+
+  coord_flip()
+
+startup_data %>% 
+  ggplot(aes(
+    x = funding_total_usd
+  )) +
+    geom_histogram() 
+
+startup_data %>% 
+  ggplot(aes(
+    x = log(funding_total_usd)
+  )) +
+    geom_boxplot() +
+    coord_flip()
+
+startup_data %>% 
+  ggplot(aes(
+    x = log(funding_total_usd)
+  )) +
+    geom_histogram()
 
 ```
 
 
+```{r}
+startup_data %>% 
+  arrange(desc(funding_total_usd)) %>% 
+  head(10)
+
+startup_data_process %>% 
+  arrange(funding_total_usd) %>% 
+  head(10)
+```
+### Funding rounds
+```{r}
+# startups according to funding round
+startup_data %>% 
+  group_by(funding_rounds) %>% 
+  summarise(count_funding=n())
+```
+
+
+
+### Age (funding & milestones)
+
+```{r}
+startup_data %>% 
+  ggplot(aes(
+    x = age_first_funding_year,
+    colour = status
+  )) +
+  geom_density()
+
+startup_data %>% 
+  ggplot(aes(
+    x = age_last_funding_year,
+    colour = status
+  )) +
+  geom_density()
+
+startup_data %>% 
+  ggplot(aes(
+    x = age_first_milestone_year,
+    colour = status
+  )) +
+  geom_density()
+
+startup_data %>% 
+  ggplot(aes(
+    x = age_last_milestone_year,
+    colour = status
+  )) +
+  geom_density()
+```
+
+```{r}
+startup_data %>% 
+  ggplot(aes(
+    x = milestones,
+    fill = status
+  )) +
+  geom_bar()
+
+startup_data %>% 
+  ggplot(aes(
+    x = funding_rounds,
+    fill = status
+  )) +
+  geom_bar()
+
+```
+
+
+## Check categorical variables
+-> Names and distributions of categorical values.
+For the categorical variables, we looked into the sectors:
+
+# Categories
+```{r EDA sectors}
+startup_data %>%
+  group_by(category_code) %>% 
+  summarise(count_category = n()) %>%
+  arrange(desc(count_category))
+
+# we have 35 categories of startups  with the highest number of startups in software
+
+startup_data %>%
+  group_by(category_code) %>% 
+  summarise(count = n()) %>% 
+  ggplot(aes(
+    x = reorder(category_code, count),
+    y = count
+  )) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "startup category",
+    y = "number of startups"
+  )
+
+startup_data %>% 
+  group_by(category_code, status) %>% 
+  summarise(count = n()) %>% 
+  ggplot(aes(
+    x = reorder(category_code, count),
+    y = count,
+    fill = reorder(status, desc(status))
+  )) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = c("#FF3333", "#00CC66")) +
+  labs(fill = "start up status",
+       x = "category")
+
+```
+
+### States and Location
+Next, we will look at the locations of the start-ups.
+Start-ups are located in 35 different states, with most of them being in California
+```{r}
+# look at the start-ups per state
+startup_data %>% 
+  group_by(state_code_1) %>%
+  summarise(count_state = n()) %>%
+  arrange(desc(count_state))
+
+# we have 35 states with startups with highest number of startups in California
+```
+
+
+```{r }
+
+library(sf)
+remotes::install_github("UrbanInstitute/urbnmapr")
+library(urbnmapr)
+
+counties_sf <- get_urbn_map("counties", sf = TRUE)
+
+counties_sf
+
+class(counties_sf)
+counties_sf$geometry
+
+counties_sf <- counties_sf %>% 
+st_transform(4326)
+
+counties_sf %>% 
+  ggplot(aes()) +
+  geom_sf(fill = "grey70", colour = "#ffffff") +
+  geom_point(data = startup_data, aes(
+    x = longitude,
+    y = latitude
+  ))
+
+startup_data %>% 
+  filter(longitude > -20)
+
+num_by_state <- startup_data %>% 
+  group_by(state_code) %>% 
+  summarise(count = n())
+
+counties_sf_heat <- counties_sf %>% 
+  left_join(num_by_state, by = c("state_abbv" = "state_code"))
+
+counties_sf_heat %>% 
+  ggplot(aes()) +
+  geom_sf(aes(fill = count)) +
+  scale_fill_gradient(low = "blue", high = "#98ff98")
+
+```
 
 # Visualisations
 
+## Category -> Melonica, Jun
+Which categories are most successful / get most funding? or similar
 
 
-## startups funding trend in recent years
+Josi: I already played with this, maybe you can use it:
+Which industry receives the most total funding?
+
 ```{r}
+funding_total <- startup_data %>%
+  group_by(category1) %>%
+  summarise(total_funding = (sum(funding_total_usd))/1000000) 
 
+funding_total_plot <- funding_total %>% 
+  ggplot(aes(x = total_funding, y = reorder(category1, total_funding), fill = category1)) +
+  geom_bar(stat="identity")
+
+funding_total_plot
+# funding in millions
 ```
 
-## startups map, identifying the next Silicon Valley.
+
+
+Which industry receives the most funding on average?
+```{r}
+funding_average <- startup_data %>%
+  group_by(category1) %>%
+  summarise(average_funding = (mean(funding_total_usd))/1000000) 
+
+funding_average_plot <- funding_average %>% 
+  ggplot(aes(x = average_funding, y = reorder(category1, average_funding), fill = category1)) +
+  geom_bar(stat="identity")
+
+funding_average_plot
+# funding in millions
+```
+
+## Location -> Rick, Mehdi
+make startups map, identifying the next Silicon Valley.
+maybe look at funding per state / success rate per state
+startups per population
+
+## Time: When do we have to reach our first milestone -> Peijun, Josi
 
 
 
-## data modelling to select the features that might influence startups funding and outcomes.
 
 
 
-## Predict a startup's future based on its current characteristics
 
+
+
+
+
+
+
+# Prediction 
+model: Predict a startup's future based on its current characteristics
+data modelling to select the features that might influence startups funding and outcomes.
 ### Logistic regression to predict status
 ```{r}
 startup_data <- startup_data %>%
@@ -263,13 +514,24 @@ status_logreg <- glm(status ~ avg_participants +
                            age_last_funding_year + 
                            relationships + 
                            funding_rounds +
+                           log(funding_total_usd) +
                            category1 +
                            milestones, data = training, family = "binomial")
 summary(status_logreg)
 ```
 
+```{r}
+#in-sample confusion matrix with cut-off 0.25
+p_in <- predict(status_logreg, training, type = "response") #predict probability of default on the training set
 
-# try with LASSO
+one_or_zero_in <- ifelse(p_in >0.25, "1", "0") 
+p_class_in <- factor(one_or_zero_in, levels = levels(startup_data_select$status)) 
+con_in <- confusionMatrix(p_class_in, training$status, positive="1") 
+con_in
+```
+
+
+# try with LASSO maybe?
 
 
 
