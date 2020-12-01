@@ -16,6 +16,13 @@ output:
 
 # Introduction
 
+The goal of this report is to   
+  - Trace the startups funding trend in recent years.
+  - Draw a startups map, identifying the next Silicon Valley.
+  - Utilise data modelling to select the features that might influence startups funding and outcomes.
+  - Predict a startup's future based on its current characteristics.
+  - Bring out customised advise to startups according to their segmentation.
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
@@ -128,7 +135,7 @@ check_milestones <- startup_data_process %>%
 # this is the case, so we will leave na here
 
 # replace the missing state, which is CA (after research)
-startup_data_process$state_code_1 <- ifelse(is.na(startup_data$state_code_1), 'CA', startup_data_process$state_code_1)
+startup_data_process$state_code_1 <- ifelse(is.na(startup_data_process$state_code_1), 'CA', startup_data_process$state_code_1)
 ```
 
 
@@ -150,7 +157,8 @@ iv) Check max, min, and distribution of numerical values.
 
 iii) Names and distributions of categorical values.
 ```{r}
-startup_data_process %>% 
+# make a new category variables
+startup_data_process <- startup_data_process %>% 
   mutate(category1 = ifelse ((category_code != 'software' & 
                                 category_code!= 'web' & 
                                 category_code != 'mobile' & 
@@ -163,8 +171,6 @@ startup_data_process %>%
                              'other_category', 
                              startup_data_process$category_code))
 ```
-
-
 
 ```{r}
 # look at the start-ups per state
@@ -182,9 +188,16 @@ startup_data_process %>%
 
 # we have 35 categories of startups  with the highest number of startups in software
 
-startup_data %>%
+startup_data_process %>%
   group_by(state_code_1,category_code) %>%
   summarise(count_state_category=n())
+```
+
+```{r}
+# startups according to funding round
+startup_data_process %>% 
+  group_by(funding_rounds) %>% 
+  summarise(count_funding=n())
 ```
 
 
@@ -206,16 +219,24 @@ startup_data <- startup_data_process
 
 # Visualisations
 
+
+
+## startups funding trend in recent years
 ```{r}
 
 ```
 
+## startups map, identifying the next Silicon Valley.
 
 
 
-# Model
+## data modelling to select the features that might influence startups funding and outcomes.
 
-## Logistic regression to predict status
+
+
+## Predict a startup's future based on its current characteristics
+
+### Logistic regression to predict status
 ```{r}
 startup_data <- startup_data %>%
   mutate(status = if_else(status == "acquired", 1, 0))
@@ -224,7 +245,7 @@ startup_data <- startup_data %>%
 ```{r}
 # we select only the relevant variables
 startup_data_select <- startup_data %>%
-  select(-zip_code, -city, -latitude, -longitude, -name, -unnamed_0, -unnamed_6, -id, -founded_at, -closed_at, -first_funding_at, -last_funding_at)
+  select(-zip_code, -city, -latitude, -longitude, -name, -id, -founded_at, -closed_at, -first_funding_at, -last_funding_at)
 
 set.seed(1212)
 
@@ -242,6 +263,7 @@ status_logreg <- glm(status ~ avg_participants +
                            age_last_funding_year + 
                            relationships + 
                            funding_rounds +
+                           category1 +
                            milestones, data = training, family = "binomial")
 summary(status_logreg)
 ```
