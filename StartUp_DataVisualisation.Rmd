@@ -1,6 +1,6 @@
 ---
 title: "StartUp_DataVisualisation"
-author: "Josephine Haag"
+author: "Study Group 8"
 date: "`r Sys.Date()`"
 output: 
     html_document:
@@ -27,7 +27,7 @@ library(Hmisc)
 library(janitor)
 library(here)
 library(skimr)
-
+library(rsample) 
 ```
 <style>
 div.navy1 { background-color:#686868; border-radius: 5px; padding: 20px; border-style: groove; color: #ffffff;}
@@ -60,18 +60,9 @@ startup_data_process <- startup_data
 
 After skimming the data to get a good overview, we will clean the data. First, we will check for missing values and duplicates.
 
-In this step 
 
-i) Remove empty columns and rows and duplicates.
-
-ii) Check how many values are missing.
-
-iii) Correct data types. 
-
-iv) Check max, min, and distribution of numerical values.
-
-iii) Names and distributions of categorical values.
 ```{r clean names}
+# clean names
 startup_data_process <- clean_names(startup_data_process)  
 ```
 
@@ -86,7 +77,6 @@ dupes <- startup_data_process %>%
   get_dupes(object_id)
 
 dupes
-
 ```
 
 There is one duplicate for the start-up "Redwood Systems", which have slightly different coordinates. Perhaps, they have moved locations but since they are both in California and still have the same zip code we will just remove the row that does not have an exact address. 
@@ -110,7 +100,7 @@ After there are now more duplicates, we will start dealing with missing data.
 # investigate the missing values
 describe(startup_data_process)    
 
-# we use the md.pattern function from MICE package
+#  use the md.pattern function from MICE package
 md.pattern(startup_data_process, rotate.names = T)
 ```
 
@@ -126,33 +116,140 @@ There are some missing values for
 startup_data_process <- startup_data_process %>%
   select(-unnamed_6)
 
-startup_data_process <- 
+# cross-check if closed_at only occurs for start-ups that are not acquired
+check_closedat <- startup_data_process %>%
+  filter(is.na(closed_at) & status == "closed")
+# this is the case, so we will leave na here
 
+# cross-check if milestone values are missing if there have not been any milestones
+check_milestones <- startup_data_process %>%
+  filter((is.na(age_first_milestone_year) & milestones != 0) | # or
+           (is.na(age_last_milestone_year) & milestones != 0))
+# this is the case, so we will leave na here
 
 # replace the missing state, which is CA (after research)
-startup_data_process$state_code.1 <- ifelse(is.na(startup_data$state_code.1), 'CA', startup_data_process$state_code.1)
-
-startup_data_process %>%
-  filter(is.na(state_code.1))
+startup_data_process$state_code_1 <- ifelse(is.na(startup_data$state_code_1), 'CA', startup_data_process$state_code_1)
 ```
 
 
-
 ## Data types
-Next, we will look at the data types
+Next, we will look at the data types. The dates still have to be put into the correct data type
+
+Other ones as well?
+
 ```{r date data type}
 # converting the dates into data format
-startup_data %>%
+startup_data_process %>%
   mutate(founded_at = mdy(founded_at), 
          closed_at = mdy(closed_at), 
          first_funding_at = mdy(first_funding_at), 
          last_funding_at = mdy(last_funding_at))
 ```
 
+iv) Check max, min, and distribution of numerical values.
+
+iii) Names and distributions of categorical values.
 ```{r}
-# make status into a dummy variable for logistic regression (do we need this now?)
-startup_data_process <- startup_data_process %>%
-  mutate(status_01 = if_else(status == "acquired", 1, 0))
+startup_data_process %>% 
+  mutate(category1 = ifelse ((category_code != 'software' & 
+                                category_code!= 'web' & 
+                                category_code != 'mobile' & 
+                                category_code != 'enterprise' & 
+                                category_code != 'advertising' & 
+                                category_code != 'games_video' & 
+                                category_code != 'ecommerce' & 
+                                category_code != 'biotech' & 
+                                category_code != 'consulting'), 
+                             'other_category', 
+                             startup_data_process$category_code))
 ```
+
+
+
+```{r}
+# look at the start-ups per state
+startup_data_process %>% 
+  group_by(state_code_1) %>%
+  summarise(count_state = n()) %>%
+  arrange(desc(count_state))
+
+# we have 35 states with startups with highest number of startups in California
+
+startup_data_process %>%
+  group_by(category_code) %>% 
+  summarise(count_category = n()) %>%
+  arrange(desc(count_category))
+
+# we have 35 categories of startups  with the highest number of startups in software
+
+startup_data %>%
+  group_by(state_code_1,category_code) %>%
+  summarise(count_state_category=n())
+```
+
+
+
+
+```{r}
+# assign the cleaned data back to the original data set so that we can work
+startup_data <- startup_data_process
+```
+
+
+# Exploratory data analaysis
+
+```{r}
+
+```
+
+
+
+# Visualisations
+
+```{r}
+
+```
+
+
+
+
+# Model
+
+## Logistic regression to predict status
+```{r}
+startup_data <- startup_data %>%
+  mutate(status = if_else(status == "acquired", 1, 0))
+```
+
+```{r}
+# we select only the relevant variables
+startup_data_select <- startup_data %>%
+  select(-zip_code, -city, -latitude, -longitude, -name, -unnamed_0, -unnamed_6, -id, -founded_at, -closed_at, -first_funding_at, -last_funding_at)
+
+set.seed(1212)
+
+train_test_split <- initial_split(startup_data_select, prop = 0.8) #training set contains 80% of the data
+
+# Create the training and testing datasets
+training <- training(train_test_split)
+testing <- testing(train_test_split)
+```
+
+just playing around with the model (will tune further if necessary)
+```{r}
+status_logreg <- glm(status ~ avg_participants + 
+                           age_first_funding_year + 
+                           age_last_funding_year + 
+                           relationships + 
+                           funding_rounds +
+                           milestones, data = training, family = "binomial")
+summary(status_logreg)
+```
+
+
+# try with LASSO
+
+
+
 
 
