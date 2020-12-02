@@ -190,9 +190,9 @@ create area variable (West coast, East Cost etc)
 create
 ```{r}
 # create age
-startup_data_process2 <- startup_data_process %>%
-  mutate(age_Dec2020 = floor(age_calc(startup_data_process$founded_at, units = "years")))
-           age_calc(dob, enddate = Sys.Date(), units = "years", precise = TRUE))
+# startup_data_process2 <- startup_data_process %>%
+#   mutate(age_Dec2020 = floor(age_calc(startup_data_process$founded_at, units = "years")))
+#            age_calc(dob, enddate = Sys.Date(), units = "years", precise = TRUE))
   
   
 # create year founded  
@@ -476,7 +476,7 @@ leaflet() %>%
                    fillOpacity = 0.4, 
                    popup = ~state_code,
                    label = ~category_code,
-                   #to get a better overview of the number and location of apartments in Copenhagen, a clustered map was chosen instead of the original point mapping.
+                   #to get a better overview of the number start-ups in the US a clustered map was chosen instead of the original point mapping.
                    clusterOptions = markerClusterOptions()
                   )
   
@@ -525,29 +525,42 @@ maybe look at funding per state / success rate per state
 startups per population
 
 ## Time: When do we have to reach our first milestone -> Peijun, Josi
+
 When do we have to reach our first milestones?
 When do we have to reach our first funding?
 Which year were most (successful) companies founded?
 
-# First milestone
-```{r}
+### First milestone
+```{r setup milestones}
 means_first_milestone <- startup_data %>%
   group_by(status) %>%
   summarise(means = mean(age_first_milestone_year, na.rm = TRUE))
+
+means_first_milestone_acquired <- means_first_milestone$means[1]
+means_first_milestone_closed <- means_first_milestone$means[2]
 
 means_last_milestone <- startup_data %>%
   group_by(status) %>%
   summarise(means = mean(age_last_milestone_year, na.rm = TRUE))
 
+means_last_milestone_acquired <- means_last_milestone$means[1]
+means_last_milestone_closed <- means_last_milestone$means[2]
+
+categories_names <- c("Advertising", "E-Commerce", "Games & Video", "Mobile", "Other", "Software", "Web")
+names(categories_names) <- c("advertising", "ecommerce", "games_video", "mobile", "other", "software", "web")
+```
+
+```{r plots milestones}  
+# create plot for first milestones
 plot_time1 <- startup_data %>%
   filter(category2 != "other_category") %>%
   ggplot(aes(x = age_first_milestone_year, color = status, fill = status)) +
-  geom_density(aes(alpha = 0.3)) +
-  geom_vline(aes(xintercept = 3.362449),  #check this again please 
+  geom_density(alpha = 0.5) +
+  geom_vline(aes(xintercept = means_first_milestone_acquired),   
                color = "#4aaec0", linetype = "dotted", size = 0.5) +  
-  geom_vline(aes(xintercept = 2.293706),  #check this again please 
+  geom_vline(aes(xintercept = means_first_milestone_closed), 
                color = "#ff5828", linetype = "dotted", size = 0.5) +  
-  facet_wrap(~category2, ncol = 2, scales = "free_y") +
+  facet_wrap(~category2, ncol = 2, scales = "free_y", labeller = labeller(category2 = categories_names)) +
   scale_x_continuous(limits = c(-2, 10)) +
   scale_color_manual(values = c("#4aaec0", "#ff5828")) +
   scale_fill_manual(values = c("#4aaec0", "#ff5828")) +
@@ -560,28 +573,31 @@ plot_time1 <- startup_data %>%
 
 plot_time1
 
-
+# have this for the RMD but not for the presentation
 plot_time2 <- startup_data %>%
   filter(category2 != "other_category") %>%
   ggplot(aes(x = age_last_milestone_year, color = status, fill = status)) +
-  geom_density(aes(alpha = 0.5)) +
-  geom_vline(aes(xintercept = 5.297772),  #check this again please 
+  geom_density(alpha = 0.5) +
+  geom_vline(aes(xintercept = means_last_milestone_acquired),   
                color = "#4aaec0", linetype = "dotted", size = 0.5) +  
-  geom_vline(aes(xintercept = 3.408055),  #check this again please 
+  geom_vline(aes(xintercept = means_last_milestone_closed),   
                color = "#ff5828", linetype = "dotted", size = 0.5) +  
-  facet_wrap(~category2, ncol = 2, scales = "free_y") +
+  facet_wrap(~category2, ncol = 2, scales = "free_y", labeller = labeller(category2 = categories_names)) +
   scale_x_continuous(limits = c(-2, 15)) +
   scale_color_manual(values = c("#4aaec0", "#ff5828")) +
   scale_fill_manual(values = c("#4aaec0", "#ff5828")) +
   theme_minimal() +
   labs(title = "Successful start-ups reach their last milestones later in most industries",
        subtitle = "Age of start-ups when reaching their last milestones",
-       y = "Status",
-       x = "Age of first milestone") +
+       y = "",
+       x = "Age of last milestone") +
+ # theme(strip.text.x = element_text(size = 12, face = "bold", vjust =1)) +
   NULL
 
  plot_time2
- 
+
+ # left to do
+# label means 
 ```
 
 Do successful start-ups reach their first milestone earlier than unsuccessful ones?
@@ -648,36 +664,97 @@ The test shows that there is a significant difference for the first funding year
 Successful start-ups usually reach their first milestone later. Thus, we will aim not to rush reaching our first milestone.
 
 When do we have to reach our first milestone?
-
 On average we should reach our first milestone after 3.362449 years
 
-
+If we want to go into the mobile category:
 ```{r}
+ideal_category <- "mobile"
+
 means_first_milestone_category <- startup_data %>%
-  filter(category2 == "mobile") %>% # depending on which industry we want to go in 
+  filter(category2 == ideal_category) %>% # depending on which industry we want to go in 
   group_by(category2, status) %>%
   summarise(means_category = mean(age_first_milestone_year, na.rm = TRUE),
             sd_category = sd(age_first_milestone_year, na.rm = TRUE)) %>%
   arrange(desc(means_category))
 
 means_first_milestone_category
+
+means_last_milestone_category <- startup_data %>%
+  filter(category2 == ideal_category) %>% # depending on which industry we want to go in 
+  group_by(category2, status) %>%
+  summarise(means_category = mean(age_last_milestone_year, na.rm = TRUE),
+            sd_category = sd(age_last_milestone_year, na.rm = TRUE)) %>%
+  arrange(desc(means_category))
+
+means_last_milestone_category
+
+ideal_first_milestone_age <- means_first_milestone_category$means_category[1]  
+ideal_last_milestone_age <- means_last_milestone_category$means_category[1] 
+
 ```
 
 
 
 
 ### Age when first funding
-```{r}
-plot_time2 <- startup_data %>%
- # filter(category2 != "other_category") %>%
+
+```{r first milestones}
+# not very interesting do not include
+means_first_funding <- startup_data %>%
+  group_by(status) %>%
+  summarise(means = mean(age_first_funding_year, na.rm = TRUE))
+
+means_last_funding <- startup_data %>%
+  group_by(status) %>%
+  summarise(means = mean(age_last_funding_year, na.rm = TRUE))
+
+plot_time3 <- startup_data %>%
+  filter(category2 != "other_category") %>%
   ggplot(aes(x = age_first_funding_year, color = status, fill = status)) +
-  geom_density(aes(alpha = 0.5)) +
+  geom_density(aes(alpha = 0.3)) +
+  geom_vline(aes(xintercept = 2.097636),  #check this again please 
+               color = "#4aaec0", linetype = "dotted", size = 0.5) +  
+  geom_vline(aes(xintercept = 2.492452),  #check this again please 
+               color = "#ff5828", linetype = "dotted", size = 0.5) +  
+  facet_wrap(~category2, ncol = 2, scales = "free_y") +
+  scale_x_continuous(limits = c(-2, 10)) +
+  scale_color_manual(values = c("#4aaec0", "#ff5828")) +
+  scale_fill_manual(values = c("#4aaec0", "#ff5828")) +
+  theme_minimal() +
+  labs(title = "Successful start-ups reach their first funding later in most industries",
+       subtitle = "Age of start-ups when reaching their first funding",
+       y = "",
+       x = "Age when reaching first funding") +
+  NULL
+
+plot_time3
+
+# have this for the RMD but not for the presentation
+plot_time4 <- startup_data %>%
+  filter(category2 != "other_category") %>%
+  ggplot(aes(x = age_last_funding_year, color = status, fill = status)) +
+  geom_density(aes(alpha = 0.3)) +
+  geom_vline(aes(xintercept = 4.092535),  #check this again please 
+               color = "#4aaec0", linetype = "dotted", size = 0.5) +  
+  geom_vline(aes(xintercept = 3.635489),  #check this again please 
+               color = "#ff5828", linetype = "dotted", size = 0.5) +  
   facet_wrap(~category2, ncol = 2, scales = "free_y") +
   scale_x_continuous(limits = c(-2, 15)) +
-  theme_minimal()
+  scale_color_manual(values = c("#4aaec0", "#ff5828")) +
+  scale_fill_manual(values = c("#4aaec0", "#ff5828")) +
+  theme_minimal() +
+  labs(title = "Successful start-ups reach their last funding later in most industries",
+       subtitle = "Age of start-ups when reaching their last funding",
+       y = "",
+       x = "Age of last funding") +
+  NULL
 
-plot_time2
+ plot_time4
+
+ # left to do
+ # add label for means
 ```
+
 
 ```{r t-test}
 # do we even need this
@@ -703,7 +780,7 @@ test2 <- t.test(age_first_funding_year ~ status,
 
 test2
 
-test2_tidy <- tidy(test1) %>% 
+test2_tidy <- tidy(test2) %>% 
   # Calculate difference in means, since t.test() doesn't actually do that
   mutate(estimate = estimate1 - estimate2) %>%
   # Rearrange columns
@@ -712,9 +789,135 @@ test2_tidy <- tidy(test1) %>%
 test2_tidy
 ```
 
-However, there is no difference in age for funding
+However, at the 2%, there is no difference in age for the firstfunding between successful and unsuccessful start-ups.
+
+```{r}
+ideal_category <- "mobile"
+
+means_first_funding_category <- startup_data %>%
+#  filter(category2 == ideal_category) %>% # depending on which industry we want to go in 
+ # group_by(category2) %>%
+  summarise(means_category = mean(age_first_funding_year, na.rm = TRUE),
+            sd_category = sd(age_first_funding_year, na.rm = TRUE)) %>%
+  arrange(desc(means_category))
+
+means_first_funding_category
+
+means_last_funding_category <- startup_data %>%
+#  filter(category2 == ideal_category) %>% # depending on which industry we want to go in 
+ # group_by(category2) %>%
+  summarise(means_category = mean(age_last_funding_year, na.rm = TRUE),
+            sd_category = sd(age_last_funding_year, na.rm = TRUE)) %>%
+  arrange(desc(means_category))
+
+means_last_funding_category
+
+ideal_first_funding_age <- 2.237235 # make this a variable
+ideal_last_funding_age <- 3.930933 # make this a variable
+
+# or use for the ideal category?
+```
+
 
 The average age for funding is around 2.2 years.
+
+
+
+### Timeline
+With all these insights gained, we will now create a basic overview 
+
+```{r}
+# create a new dataframe
+date_founded_at <- today ()
+date_first_funding <- today() + ideal_first_funding_age * 365
+date_last_funding <- today() + ideal_last_funding_age * 365
+date_first_milestone <- today() + ideal_first_milestone_age * 365
+date_last_milestone <- today() + ideal_last_milestone_age * 365
+
+milestone <- c("Foundation", "First funding", "Last funding", "First milestone", "Last milestone")
+date <- c(date_founded_at, date_first_funding, date_last_funding, date_first_milestone, date_last_milestone)
+category <- c("Foundation", "Funding", "Funding", "Milestone", "Milestone")
+position <- c(0.05, 0.05, 0.05, 0.05, 0.05)
+direction <- c(0.2, 0.2, 0.2, 0.2, 0.2)
+
+start_up_timeline <- data.frame(milestone, date, category, position, direction)
+
+start_up_timeline <- start_up_timeline %>%
+  mutate(month = month(date),
+         year = year(date))
+
+```
+
+```{r}
+category_levels <- c("Foundation", "Funding", "Milestone")
+category_colors <- c("#1f6e8c", "#ff5828", "#4aaec0")
+
+start_up_timeline$category <- factor(start_up_timeline$category, levels = category_levels, ordered = TRUE)
+```
+
+```{r}
+text_offset <- 0.05
+
+start_up_timeline$month_count <- ave(start_up_timeline$date==start_up_timeline$date, start_up_timeline$date, FUN=cumsum)
+start_up_timeline$text_position <- (start_up_timeline$month_count * text_offset * start_up_timeline$direction) + start_up_timeline$position
+
+```
+
+```{r}
+month_buffer <- 2
+
+month_date_range <- seq(min(start_up_timeline$date) - months(month_buffer), max(start_up_timeline$date) + months(month_buffer), by='month')
+month_format <- format(month_date_range, '%b')
+month_df <- data.frame(month_date_range, month_format)
+```
+
+```{r}
+year_date_range <- seq(min(start_up_timeline$date) - months(month_buffer), max(start_up_timeline$date) + months(month_buffer), by='year')
+year_date_range <- as.Date(
+    intersect(
+        ceiling_date(year_date_range, unit="year"),
+        floor_date(year_date_range, unit="year")
+    ),  origin = "1970-01-01"
+)
+year_format <- format(year_date_range, '%Y')
+year_df <- data.frame(year_date_range, year_format)
+```
+
+```{r, fig.width = 5, fig.height = 2}
+#### PLOT ####
+
+timeline_plot<-ggplot(start_up_timeline, 
+                      aes(x=date,y=0, col=category, label=milestone)) +
+  scale_color_manual(values=category_colors, labels=category_levels, drop = FALSE) +
+  theme_classic() +
+  geom_hline(yintercept=0, color = "black", size=0.3) +
+  geom_segment(data=start_up_timeline[start_up_timeline$month_count == 1,], aes(y=position,yend=0,xend=date), color='black', size=0.2) +
+  geom_point(aes(y=0), size=3) +
+  theme(axis.line.y=element_blank(),
+                 axis.text.y=element_blank(),
+                 axis.title.x=element_blank(),
+                 axis.title.y=element_blank(),
+                 axis.ticks.y=element_blank(),
+                 axis.text.x =element_blank(),
+                 axis.ticks.x =element_blank(),
+                 axis.line.x =element_blank(),
+                 legend.position = "bottom"
+                ) +
+  geom_text(data=month_df, aes(x=month_date_range,y=-0.01,label=month_format),size=2.5,vjust=0.5, color='black', angle=90) + 
+  geom_text(data=year_df, aes(x=year_date_range,y=-0.03,label=year_format, fontface="bold"),size=4, color='black') +
+  geom_text(aes(y=text_position, label=milestone, fontface = "bold"),size = 3.5) +
+ # theme_minimal() +
+  labs(title = "When should we aim to reach our milestones and funding rounds?",
+       subtitle = "Timeline for our start-up",
+       col="Milestones",
+       y ="",
+       x = "") +
+  NULL
+
+timeline_plot
+```
+
+
 
 
 
@@ -723,7 +926,7 @@ model: Predict a startup's future based on its current characteristics
 data modelling to select the features that might influence startups funding and outcomes.
 ### Logistic regression to predict status
 ```{r}
-startup_data <- startup_data %>%
+startup_data_model <- startup_data %>%
   mutate(status = if_else(status == "acquired", 1, 0))
 ```
 
@@ -743,17 +946,22 @@ testing <- testing(train_test_split)
 
 just playing around with the model (will tune further if necessary)
 ```{r}
-status_logreg <- glm(status ~ avg_participants + 
-                           age_first_funding_year + 
-                           age_last_funding_year + 
-                           relationships + 
+status_logreg <- glm(status ~ 
+                         #  avg_participants + 
+                           age_first_milestone_year + 
+                           age_last_milestone_year + 
+                           year_founded +
+                        #   relationships + 
                            funding_rounds +
                            log(funding_total_usd) +
-                           category1 +
+                           is_mobile +
+                           is_ca +
+                         #  category2 +
                            milestones, data = training, family = "binomial")
 summary(status_logreg)
 ```
 
+# calculate probabiltiy of success
 ```{r}
 #in-sample confusion matrix with cut-off 0.25
 p_in <- predict(status_logreg, training, type = "response") #predict probability of default on the training set
