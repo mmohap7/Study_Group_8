@@ -2,27 +2,33 @@
 title: "StartUp_DataVisualisation"
 author: "Study Group 8"
 date: "`r Sys.Date()`"
-output: 
-    html_document:
-      number_sections: true
-      highlight: haddock
-      theme: spacelab
-      toc: yes
-      toc_depth: 2
-      toc_float:
-        collapsed: false
-      fontzize: 10pt
+output:
+  html_document:
+    number_sections: yes
+    highlight: haddock
+    theme: spacelab
+    toc: yes
+    toc_depth: 2
+    toc_float:
+      collapsed: no
+    fontzize: 10pt
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+  word_document:
+    toc: yes
+    toc_depth: '2'
 ---
 
 # Introduction
 What predicts start-up success? As six entrepreneurial-minded students from LBS, we wanted to understand better how start-up success can be predicted. Which industry receive higher funding and which locations contribute to a higher probability of being acquired?
 We would love to start our own venture in the US and find out more about trends in the start-up world there and how will can increases our chances of being successful.
 
-In order to find out what we should do and how we should get there we will look into different aspects of our new venture called "Kostis" (too much? haha).
+In order to find out what we should do and how we should get there we will look into different aspects of our new venture called.
 Firstly, we will investigate the category...
 Secondly, we will look at location
 Lastly, at time and when we should plan to reach our first milestones and secure funding rounds. 
-In the end we will use the insights gained from this and build a prediction model for our venture "Kostis"
+In the end we will use the insights gained from this and build a prediction model for our venture
 
 ##### Notes
 Notes
@@ -69,23 +75,25 @@ div.navy1 { background-color:#686868; border-radius: 5px; padding: 20px; border-
 
 </style>
 
-<div><img src="BBC.jpg" width="200px" align="right"></div>
-
 ```{r setup2, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Data loading
+We have loaded the data from Kaggle !("https://www.kaggle.com/manishkc06/startup-success-prediction").
+
 ```{r clean data}
 startup_data <- read_csv("data/startup data.csv") 
 ```
-
+## Inspect the data
+Here we have inspected the data. The data contains a lot of columns that has already defined dummy variables for a potential regression analysis.
 ```{r}
+
+#View the first couple of rows with all the columns
 glimpse(startup_data)
 
-head(startup_data)
-
-describe(startup_data) 
+#Use the skim function to check the variables for missing values and distribution
+skim(startup_data)
 
 # add to new data frame to process and clean the data
 startup_data_process <- startup_data
@@ -93,14 +101,13 @@ startup_data_process <- startup_data
 
 # Data cleaning
 
-After skimming the data to get a good overview, we will clean the data. First, we will check for missing values and duplicates.
-
+After skimming the data to get a good overview, we have cleaned the data. To make the data technically correct we have checked the data, cleaned the column names, has no duplicate or empty rows and make sure the columns represent the right type.
 
 ```{r clean names}
 # clean names
 startup_data_process <- clean_names(startup_data_process)  
-```
 
+```
 
 ## Duplicates
 ```{r,echo=FALSE}
@@ -114,7 +121,7 @@ dupes <- startup_data_process %>%
 dupes
 ```
 
-There is one duplicate for the start-up "Redwood Systems", which have slightly different coordinates. Perhaps, they have moved locations but since they are both in California and still have the same zip code we will just remove the row that does not have an exact address. 
+There is one duplicate for the start-up "Redwood Systems", which have slightly different coordinates. Perhaps, they have moved locations but since they are both in California and still have the same zip code we have removed the row that does not have an exact address. 
 
 ```{r remove duplicate}
 # removing the duplicate row
@@ -127,45 +134,6 @@ dupes <- startup_data_process %>%
 dupes
 
 ```
-
-## Missing data
-After there are now more duplicates, we will start dealing with missing data.
-
-```{r}
-# investigate the missing values
-describe(startup_data_process)    
-
-#  use the md.pattern function from MICE package
-md.pattern(startup_data_process, rotate.names = T)
-```
-
-There are some missing values for 
-- Unnamed_6: this is a more detailed address, we will delete this column
-- closed_at 
-- age_first_milestone_year 
-- age_last_milestone_year
-- state_code.1
-
-```{r missing values}
-# delete unnamed_6
-startup_data_process <- startup_data_process %>%
-  select(-unnamed_6)
-
-# cross-check if closed_at only occurs for start-ups that are not acquired
-check_closedat <- startup_data_process %>%
-  filter(is.na(closed_at) & status == "closed")
-# this is the case, so we will leave na here
-
-# cross-check if milestone values are missing if there have not been any milestones
-check_milestones <- startup_data_process %>%
-  filter((is.na(age_first_milestone_year) & milestones != 0) | # or
-           (is.na(age_last_milestone_year) & milestones != 0))
-# this is the case, so we will leave na here
-
-# replace the missing state, which is CA (after research)
-startup_data_process$state_code_1 <- ifelse(is.na(startup_data_process$state_code_1), 'CA', startup_data_process$state_code_1)
-```
-
 
 ## Data types
 Next, we will look at the data types. The dates still have to be put into the correct data type
@@ -181,9 +149,8 @@ startup_data_process <- startup_data_process %>%
          last_funding_at = mdy(last_funding_at))
 ```
 
-
-
 ## Create new variables 
+Further in this report we need additional variables for visualisations. Also, we have made sure the variables are of the right type 
 create age in year
 create year founded (extract from day)
 create area variable (West coast, East Cost etc)
@@ -223,7 +190,49 @@ startup_data_process <- startup_data_process %>%
                              startup_data_process$category_code))
 ```
 
-After the data cleaning we will assign it back to the original data set and then start our exploratory data analysis.
+After making the data technically correct, we have made sure the data is consistent. We checked the variables for missing variables and made sensible decisions to what to do with the missing data. In the EDA we checked the variables even further and adjusted for extreme outliers.
+
+## Missing data
+
+```{r}
+# investigate the missing values
+describe(startup_data_process)    
+
+#  use the md.pattern function from MICE package
+md.pattern(startup_data_process, rotate.names = T)
+```
+
+There are some missing values for 
+- Unnamed_6: this is a more detailed address, we will delete this column
+- closed_at 
+- age_first_milestone_year 
+- age_last_milestone_year
+- state_code.1
+
+We decided to remove the unnamed_6 column because it did not add anything to the research, as it is just a combination of zip code and state. Closed_at remains to have NA values, as an acquired company has no close date. The missing milestone years are explained by startups not having milestones, so we left the NA values here. We replaced the 1 NA for state code to CA, because this company was established here.
+
+```{r missing values}
+# delete unnamed_6
+startup_data_process <- startup_data_process %>%
+  select(-unnamed_6)
+
+# cross-check if closed_at only occurs for start-ups that are not acquired
+check_closedat <- startup_data_process %>%
+  filter(is.na(closed_at) & status == "closed")
+# this is the case, so we will leave na here
+
+# cross-check if milestone values are missing if there have not been any milestones
+check_milestones <- startup_data_process %>%
+  filter((is.na(age_first_milestone_year) & milestones != 0) | # or
+           (is.na(age_last_milestone_year) & milestones != 0))
+# this is the case, so we will leave na here
+
+# replace the missing state, which is CA (after research)
+startup_data_process$state_code_1 <- ifelse(is.na(startup_data_process$state_code_1), 'CA', startup_data_process$state_code_1)
+```
+
+
+After the data cleaning we will assign it back to the original data set and then start our exploratory data analysis. We will treat any outliers as we go through the EDA.
 ```{r}
 # assign the cleaned data back to the original data set so that we can work
 startup_data <- startup_data_process
@@ -233,13 +242,13 @@ startup_data <- startup_data_process
 # Exploratory data analaysis
 
 ## Check numerical variables
-iv) Check max, min, and distribution of numerical values.
-- some ages are negative -> what do we do with these? (either make 0 or delete) -> most differences are very small
-make those with less than a month 0, others delete
+We checked the numerical variables on outliers and wrong data. For this we look at the describe and skim function used above.
 
 ### Funding Amount
-First, we look into the distribution of the funding amount. It is highly right-skewed, which is why we take the log
+First, we looked into the distribution of the funding amount. It is highly right-skewed, which is why we take the log
 ```{r}
+
+#Create a boxplot for the total funding
 startup_data %>% 
   ggplot(aes(
     x = funding_total_usd
@@ -278,6 +287,8 @@ startup_data_process %>%
   arrange(funding_total_usd) %>% 
   head(10)
 ```
+Looking at the funding total, there are some outliers. These do not seem unjustified, so we will not do anything with them here.
+
 ### Funding rounds
 ```{r}
 # startups according to funding round
@@ -285,7 +296,6 @@ startup_data %>%
   group_by(funding_rounds) %>% 
   summarise(count_funding=n())
 ```
-
 
 
 ### Age (funding & milestones)
@@ -934,8 +944,10 @@ model: Predict a startup's future based on its current characteristics
 data modelling to select the features that might influence startups funding and outcomes.
 ### Logistic regression to predict status
 ```{r}
-startup_data_model <- startup_data %>%
-  mutate(status = if_else(status == "acquired", 1, 0))
+
+startup_data_select <- startup_data %>%
+  mutate(status = ifelse(status == "acquired", 1, 0))
+
 ```
 
 ```{r}
@@ -951,6 +963,8 @@ testing <- testing(train_test_split)
 
 just playing around with the model (will tune further if necessary)
 ```{r}
+
+
 status_logreg <- glm(status ~ 
                            avg_participants + 
                            age_first_milestone_year + 
