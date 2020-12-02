@@ -15,7 +15,7 @@ output:
 ---
 
 # Introduction
-What predicts start-up success? As six entrepreneurial-minded students from LBS, we wanted to understand better how start-up success can be predicted. Which industry receive higher fundings and which locations contribute to a higher probability of being acquired?
+What predicts start-up success? As six entrepreneurial-minded students from LBS, we wanted to understand better how start-up success can be predicted. Which industry receive higher funding and which locations contribute to a higher probability of being acquired?
 We would love to start our own venture in the US and find out more about trends in the start-up world there and how will can increases our chances of being successful.
 
 In order to find out what we should do and how we should get there we will look into different aspects of our new venture called "Kostis" (too much? haha).
@@ -60,6 +60,8 @@ library(readr)
 library(sf)
 remotes::install_github("UrbanInstitute/urbnmapr")
 library(urbnmapr)
+library(kableExtra)
+library(patchwork)
 ```
 <style>
 div.navy1 { background-color:#686868; border-radius: 5px; padding: 20px; border-style: groove; color: #ffffff;}
@@ -213,6 +215,17 @@ startup_data_process <- startup_data_process %>%
                              startup_data_process$category_code))
 ```
 
+```{r}
+startup_data_process <- startup_data_process %>% 
+  mutate(category2 = ifelse ((category_code != 'software' & 
+                                category_code!= 'web' & 
+                                category_code != 'mobile' & 
+                                category_code != 'advertising' & 
+                                category_code != 'games_video' & 
+                                category_code != 'ecommerce' ), 
+                             'other_category', 
+                             startup_data_process$category_code))
+```
 
 After the data cleaning we will assign it back to the original data set and then start our exploratory data analysis.
 ```{r}
@@ -471,16 +484,143 @@ maybe look at funding per state / success rate per state
 startups per population
 
 ## Time: When do we have to reach our first milestone -> Peijun, Josi
+When do we have to reach our first milestones?
+When do we have to reach our first funding?
+Which year were most (successful) companies founded?
 
 
+```{r}
+plot_time1 <- startup_data %>%
+  filter(category2 != "other_category") %>%
+  ggplot(aes(x = age_first_milestone_year, color = status, fill = status)) +
+  geom_density(aes(alpha = 0.5)) +
+  facet_wrap(~category2, ncol = 2, scales = "free_y") +
+  scale_x_continuous(limits = c(-2, 15)) +
+  theme_minimal()
+
+plot_time2 <- startup_data %>%
+  filter(category2 != "other_category") %>%
+  ggplot(aes(x = age_last_milestone_year, color = status, fill = status)) +
+  geom_density(aes(alpha = 0.5)) +
+  facet_wrap(~category2, ncol = 2, scales = "free_y") +
+  scale_x_continuous(limits = c(-2, 15)) +
+  theme_minimal()
+
+plot_time1 + plot_time2
+```
+
+Do successful start-ups reach their first milestone earlier than unsuccessful ones?
+```{r}
+# summary stats
+startup_data %>%
+  group_by(status) %>%
+  summarise(mean_milestone = mean(age_first_milestone_year, na.rm = TRUE)) %>% 
+  kable()
+```
+
+```{r}
+# remove extreme outliers ?
+# boxplot 
+milestone_plot <- ggplot(startup_data, aes(y = status, x = (age_first_milestone_year))) +
+  geom_boxplot(aes(color = status), width = 0.3, show.legend = FALSE) +
+  geom_jitter(aes(color = status), alpha = 0.5, show.legend = FALSE, position = position_jitter(width = 0.2, seed = 0)) +
+  scale_color_manual(values = c("red","green")) +
+  theme_minimal() +
+  labs(title = "Which start-ups reach their first milestone first?",
+       subtitle = "Age of start-ups when reaching their first milestones",
+       y = "Status",
+       x = "Age of first milestone")
+
+milestone_plot
+```
+
+```{r t-test}
+# do we even need this
+formula_ci_milestones <- startup_data %>%
+  group_by(status) %>%
+  summarise( mean_milestones = mean(age_first_milestone_year, na.rm = TRUE), 
+             sd_milestones = sd(age_first_milestone_year, na.rm = TRUE), 
+             count = n(), 
+             
+             # get t-critical value with (n-1) degrees of freedom
+             t_critical = qt(0.975, count-1),
+             se = sd_milestones/sqrt(count),
+             margin_of_error = t_critical * se,
+             ci_low = mean_milestones - margin_of_error,
+             ci_high = mean_milestones + margin_of_error
+  )
+
+formula_ci_milestones %>% 
+  kable()
+
+test1 <- t.test(age_first_milestone_year ~ status, 
+        data = startup_data) 
+
+test1
+
+test1_tidy <- tidy(test1) %>% 
+  # Calculate difference in means, since t.test() doesn't actually do that
+  mutate(estimate = estimate1 - estimate2) %>%
+  # Rearrange columns
+  select(starts_with("estimate"), everything())
+
+test1_tidy
+```
+
+The test shows that there is a significant difference for the first funding year between successful and unsuccessful start-ups.  
+
+Successful start-ups usually reach their first milestone later. Thus, we will aim not to rush reaching our first milestone...
 
 
+### Age when first funding
+```{r}
+plot_time2 <- startup_data %>%
+ # filter(category2 != "other_category") %>%
+  ggplot(aes(x = age_first_funding_year, color = status, fill = status)) +
+  geom_density(aes(alpha = 0.5)) +
+  facet_wrap(~category2, ncol = 2, scales = "free_y") +
+  scale_x_continuous(limits = c(-2, 15)) +
+  theme_minimal()
 
+plot_time2
+```
 
+```{r t-test}
+# do we even need this
+formula_ci_firstfunding <- startup_data %>%
+  group_by(status) %>%
+  summarise( mean_firstfunding = mean(age_first_funding_year, na.rm = TRUE), 
+             sd_firstfunding = sd(age_first_funding_year, na.rm = TRUE), 
+             count = n(), 
+             
+             # get t-critical value with (n-1) degrees of freedom
+             t_critical = qt(0.975, count-1),
+             se = sd_firstfunding/sqrt(count),
+             margin_of_error = t_critical * se,
+             ci_low = mean_firstfunding - margin_of_error,
+             ci_high = mean_firstfunding + margin_of_error
+  )
 
+formula_ci_firstfunding %>% 
+  kable()
 
+test2 <- t.test(age_first_funding_year ~ status, 
+        data = startup_data) 
 
+test2
 
+test2_tidy <- tidy(test1) %>% 
+  # Calculate difference in means, since t.test() doesn't actually do that
+  mutate(estimate = estimate1 - estimate2) %>%
+  # Rearrange columns
+  select(starts_with("estimate"), everything())
+
+test2_tidy
+```
+
+However, there is no difference in age for funding
+
+The average age for funding is around 2.2 years.
 
 
 
