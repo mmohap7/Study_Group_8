@@ -766,32 +766,32 @@ plot_time4 <- startup_data %>%
 ```
 
 
-```{r t-test}
-test2 <- t.test(age_first_funding_year ~ status, 
+```{r t-test first funding}
+test_fg_first <- t.test(age_first_funding_year ~ status, 
         data = startup_data) 
-test2
+test_fg_first
 
-test2_tidy <- tidy(test2) %>% 
+test_fg_first_tidy <- tidy(test_fg_first) %>% 
   # Calculate difference in means, since t.test() doesn't actually do that
   mutate(estimate = estimate1 - estimate2) %>%
   # Rearrange columns
   select(starts_with("estimate"), everything())
 
-test2_tidy
+test_fg_first_tidy
 ```
 
-```{r}
-test2b <- t.test(age_last_funding_year ~ status, 
+```{r t-test last funding}
+test_fg_last <- t.test(age_last_funding_year ~ status, 
         data = startup_data) 
-test2b
+test_fg_last
 
-test2b_tidy <- tidy(test2b) %>% 
+test_fg_last_tidy <- tidy(test_fg_last) %>% 
   # Calculate difference in means, since t.test() doesn't actually do that
   mutate(estimate = estimate1 - estimate2) %>%
   # Rearrange columns
   select(starts_with("estimate"), everything())
 
-test2b_tidy
+test_fg_last_tidy
 ```
 
 However, at the 2%, there is no difference in age for the first funding between successful and unsuccessful start-ups. The same occurs for the last funding round age.
@@ -809,8 +809,7 @@ means_first_funding_category <- startup_data %>%
 means_first_funding_category
 
 means_last_funding_category <- startup_data %>%
-#  filter(category2 == ideal_category) %>% # depending on which industry we want to go in 
- # group_by(category2) %>%
+  filter(category2 == ideal_category) %>% # depending on which industry we want to go in 
   summarise(means_category = mean(age_last_funding_year, na.rm = TRUE),
             sd_category = sd(age_last_funding_year, na.rm = TRUE)) %>%
   arrange(desc(means_category))
