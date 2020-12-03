@@ -30,19 +30,6 @@ Secondly, we will look at location
 Lastly, at time and when we should plan to reach our first milestones and secure funding rounds. 
 In the end we will use the insights gained from this and build a prediction model for our venture
 
-##### Notes
-Notes
-- category: what is the most successful category? JUN, MELONICA
-- location: where: map: Draw a startups map, identifying the next Silicon Valley. RICK, MEHDI
-    Idea Josi: Maybe we can also compare it to population ? Startups per population?
-- time PEIJUN, JOSI
-    when do we have to reach our milestones
-    when do we have to our first/second/third funding round as well as funding amount
-    
-=> Build a model with it, to get highest success in start-up world in the US
-
-Overall theme & color scheme: 
-
 The goal of this report is to   
   - Trace the startups funding trend in recent years.
   - Draw a startups map, identifying the next Silicon Valley.
@@ -69,6 +56,7 @@ library(urbnmapr)
 library(kableExtra)
 library(patchwork)
 library(scales)
+library(geofacet)
 ```
 <style>
 div.navy1 { background-color:#686868; border-radius: 5px; padding: 20px; border-style: groove; color: #ffffff;}
@@ -83,8 +71,9 @@ knitr::opts_chunk$set(echo = TRUE)
 We have loaded the data from Kaggle !("https://www.kaggle.com/manishkc06/startup-success-prediction").
 
 ```{r clean data}
-startup_data <- read_csv("data/startup data.csv") 
+startup_data <- read_csv("startup data.csv") 
 ```
+
 ## Inspect the data
 Here we have inspected the data. The data contains a lot of columns that has already defined dummy variables for a potential regression analysis.
 ```{r}
@@ -109,11 +98,12 @@ startup_data_process <- clean_names(startup_data_process)
 
 ```
 
+
 ## Duplicates
+
 ```{r,echo=FALSE}
 # remove empty columns and rows
 startup_data_process <- remove_empty(startup_data_process, which = c("rows","cols"))
-
 # check for duplicates
 dupes <- startup_data_process %>% 
   get_dupes(object_id)
@@ -126,13 +116,10 @@ There is one duplicate for the start-up "Redwood Systems", which have slightly d
 ```{r remove duplicate}
 # removing the duplicate row
 startup_data_process <- startup_data_process[ !(startup_data_process$unnamed_0 == 505), ]
-
 # checking if there still are duplicates
 dupes <- startup_data_process %>% 
   get_dupes(object_id)
-
 dupes
-
 ```
 
 ## Data types
@@ -151,10 +138,10 @@ startup_data_process <- startup_data_process %>%
 
 ## Create new variables 
 Further in this report we need additional variables for visualisations. Also, we have made sure the variables are of the right type 
-create age in year
-create year founded (extract from day)
-create area variable (West coast, East Cost etc)
-create
+
+1. create year founded
+2. create year founded (extract from day)
+
 ```{r}
  
 # create year founded  
@@ -163,7 +150,7 @@ startup_data_process <- startup_data_process %>%
 ```
 
 ```{r}
-# make a new category variables -> maybe use top 6 and rest into others 
+# make a new category variables -> use top 6 and rest into others 
 startup_data_process <- startup_data_process %>% 
   mutate(category1 = ifelse ((category_code != 'software' & 
                                 category_code!= 'web' & 
@@ -190,7 +177,7 @@ startup_data_process <- startup_data_process %>%
                              startup_data_process$category_code))
 ```
 
-After making the data technically correct, we have made sure the data is consistent. We checked the variables for missing variables and made sensible decisions to what to do with the missing data. In the EDA we checked the variables even further and adjusted for extreme outliers.
+After making the data technically correct, we have made sure the data is consistent. We checked the variables for missing variables and made sensible decisions to what to do with the missing data. In the EDA we checked the variables further and adjusted for extreme outliers.
 
 ## Missing data
 
@@ -231,8 +218,7 @@ check_milestones <- startup_data_process %>%
 startup_data_process$state_code_1 <- ifelse(is.na(startup_data_process$state_code_1), 'CA', startup_data_process$state_code_1)
 ```
 
-
-After the data cleaning we have assigned it back to the original data set and then start our exploratory data analysis. We will treat any outliers as we go through the EDA.
+After the data cleaning we will assign it back to the original data set and then start our exploratory data analysis. We will treat any outliers as we go through the EDA.
 ```{r}
 # assign the cleaned data back to the original data set so that we can work
 startup_data <- startup_data_process
@@ -245,68 +231,60 @@ startup_data <- startup_data_process
 We checked the numerical variables on outliers and wrong data. For this we look at the describe and skim function used above.
 
 ### Funding Amount
-First, we looked into the distribution of the funding amount. It is highly right-skewed, which is why we chose to also visualise this with a log function to check the distribution
-```{r}
+First, we looked into the distribution of the funding amount. It is highly right-skewed, which is why we take the log
+```{r, message=FALSE, warning= FALSE}
 
 #Create a boxplot for the total funding
 startup_data %>% 
   ggplot(aes(
     x = funding_total_usd
   )) +
-    geom_boxplot()+
+    geom_boxplot()
   coord_flip()
 
+#Create a histogram for total funding
 startup_data %>% 
   ggplot(aes(
     x = funding_total_usd
   )) +
     geom_histogram() 
+```
 
+The created plots are highly right-skewed. We created the same plots with a log-scale for x to check the distribution.
+
+```{r, message=FALSE, warning= FALSE}
+#Create
 startup_data %>% 
   ggplot(aes(
     x = log(funding_total_usd)
   )) +
     geom_boxplot() +
     coord_flip()
-
 startup_data %>% 
   ggplot(aes(
     x = log(funding_total_usd)
   )) +
     geom_histogram()
-
 ```
 
+With the log-scale the total funding seem to be close to having a normal distribution.
 
-```{r}
+```{r, message=FALSE, warning= FALSE}
 startup_data %>% 
   arrange(desc(funding_total_usd)) %>% 
   head(10)
-
-startup_data_process %>% 
+startup_data %>% 
   arrange(funding_total_usd) %>% 
   head(10)
 ```
-
-Looking at the funding total, there are some outliers. These do not seem unjustified, after looking these companies up, so we left them as they were.
-
-### Funding rounds
-```{r}
-# startups according to funding round
-startup_data %>% 
-  group_by(funding_rounds) %>% 
-  summarise(count_funding=n()) %>% 
-  ggplot(aes(
-    x = funding_rounds,
-    y = count_funding
-  )) +
-  geom_col()
-```
-
+Looking at the funding total, there are some outliers. These do not seem unjustified, after looking these companies up, so we will not do anything with them here.
 
 ### Age (funding & milestones)
+To get an insight on the funding and milestone years we plotted density graphs separated by status. Not only to see the distribution, but also to see a relation with closed and acquired startups.
 
-```{r}
+```{r, message=FALSE, warning= FALSE}
+
+#Density plot for first funding year, separated by status
 startup_data %>% 
   ggplot(aes(
     x = age_first_funding_year,
@@ -314,6 +292,7 @@ startup_data %>%
   )) +
   geom_density()
 
+#Density plot for last funding year, separated by status
 startup_data %>% 
   ggplot(aes(
     x = age_last_funding_year,
@@ -321,6 +300,7 @@ startup_data %>%
   )) +
   geom_density()
 
+#Density plot for first milestone year
 startup_data %>% 
   ggplot(aes(
     x = age_first_milestone_year,
@@ -328,6 +308,7 @@ startup_data %>%
   )) +
   geom_density()
 
+#Density plot for last milestone year
 startup_data %>% 
   ggplot(aes(
     x = age_last_milestone_year,
@@ -335,8 +316,14 @@ startup_data %>%
   )) +
   geom_density()
 ```
+Aqcuired startups seem to get fundin early on. Closed startups have outliers in the 10 year range. This indicates that closed startups generally have their first funding later on in its lifecycle. Indicating that if a startup has not had it's first funding before 8 years, the chance of being acquired is slim. for the first milestone year however, acquired companies tend to have their first milestones later than closed startups. The last funding year and milestone year seem logical as acquired startups tend to survive longer and get more funding throughout their lifecycle. We will explore this further later on in the report.
 
-```{r}
+Having looked at the skim function, we saw that years have negative values in there. We figured this could mean that the startup was funded before the company had been founded. So we left these values as they are.
+
+### Funding rounds and milestones
+To get a sense of how the round and milestones are distributed and what acquired companies typically used. We explored this using bar charts.
+```{r, message=FALSE, warning= FALSE}
+#Bar charts for milestones
 startup_data %>% 
   ggplot(aes(
     x = milestones,
@@ -344,29 +331,29 @@ startup_data %>%
   )) +
   geom_bar()
 
+#Bar charts for funding rounds
 startup_data %>% 
   ggplot(aes(
     x = funding_rounds,
     fill = status
   )) +
   geom_bar()
-
 ```
 
 
 ## Check categorical variables
--> Names and distributions of categorical values.
-For the categorical variables, we looked into the sectors:
+Here we checked the categorical values and their distributions, mainly to see what categories are most popular and succesful.
 
-# Categories
-```{r EDA sectors}
+```{r EDA sectors, warning= FALSE, message= FALSE}
+
+#Create a table with the number of startups per category
 startup_data %>%
   group_by(category_code) %>% 
   summarise(count_category = n()) %>%
   arrange(desc(count_category))
-
 # we have 35 categories of startups  with the highest number of startups in software
 
+#Create a column chart showing the startups per category
 startup_data %>%
   group_by(category_code) %>% 
   summarise(count = n()) %>% 
@@ -381,6 +368,7 @@ startup_data %>%
     y = "number of startups"
   )
 
+#Create a column chart showing the startups split by status
 startup_data %>% 
   group_by(category_code, status) %>% 
   summarise(count = n()) %>% 
@@ -397,36 +385,25 @@ startup_data %>%
 
 ```
 
-### States and Location
-Next, we will look at the locations of the start-ups.
-Start-ups are located in 35 different states, with most of them being in California
-```{r}
-# look at the start-ups per state
-startup_data %>% 
-  group_by(state_code_1) %>%
-  summarise(count_state = n()) %>%
-  arrange(desc(count_state))
+## States and Location
+We have plotted a map to see where the startups in the US are.
 
-# we have 35 states with startups with highest number of startups in California
-```
-
-
-```{r }
+```{r , message=FALSE, warning= FALSE}
 
 library(sf)
 remotes::install_github("UrbanInstitute/urbnmapr")
 library(urbnmapr)
 
-counties_sf <- get_urbn_map("counties", sf = TRUE)
+counties_sf <- get_urbn_map("counties", sf = TRUE) #Get the US map
 
-counties_sf
-
-class(counties_sf)
+#Check the geometry
 counties_sf$geometry
 
+#transform the sf to 4326 to comply with the longitude and latitude in startups
 counties_sf <- counties_sf %>% 
 st_transform(4326)
 
+#plot the map with geom_points for startups
 counties_sf %>% 
   ggplot(aes()) +
   geom_sf(fill = "grey70", colour = "#ffffff") +
@@ -435,93 +412,43 @@ counties_sf %>%
     y = latitude
   ))
 
-startup_data %>% 
-  filter(longitude > -20)
-
-num_by_state <- startup_data %>% 
-  group_by(state_code) %>% 
-  summarise(count = n())
-
-counties_sf_heat <- counties_sf %>% 
-  left_join(num_by_state, by = c("state_abbv" = "state_code"))
-
-counties_sf_heat %>% 
-  ggplot(aes()) +
-  geom_sf(aes(fill = count)) +
-  scale_fill_gradient(low = "blue", high = "#98ff98")
-
 ```
+From the map we saw 3 outliers. As we used the state_code for the further visualisations, we did not need to change this.
 
-
-```{r, echo=FALSE}
-
-head(startup_data)
-
-library(mosaic)
-library(ggfortify)
-library(moderndive)
-library(janitor)
-library(huxtable)
-library(here)
-library(broom)
-library(skimr)
-library(GGally)
-library(car)
-library(vroom)
-library(GGally)
-library(leaflet)
-
-
-#Removing the 4 outliers located in the uK and in Sweden
-startup_data_clean<- startup_data%>%
-  filter(longitude < -10 )
-
-
-#making the interactive map in the U.S
-startup_data_clean %>% 
-leaflet() %>% 
-  addProviderTiles("OpenStreetMap.Mapnik") %>% 
-  addCircleMarkers(lng = ~longitude, 
-                   lat = ~latitude, 
-                   radius = 1,
-                   fillOpacity = 0.4, 
-                   popup = ~state_code,
-                   label = ~category_code,
-                   #to get a better overview of the number start-ups in the US a clustered map was chosen instead of the original point mapping.
-                   clusterOptions = markerClusterOptions()
-                  )
-  
-```
 # Visualisations
+Now that the we explored the data we have made visualisations to answer our main questions.
 
-## Category -> Melonica, Jun
-We explore a few variables by category to see what  criteria we could utilize to predict which categories of startups are more likely to be successful. We look into average funding raised, number of funding rounds, number of milestones, number of startups in top 500 list, number of acquired v.s. failed startups, and total funding.
+1. What is the best location to found a startup?
+2. What category is most successful?
+3. What milestones and funding should we achieve and when?
 
-```{r category exploration}
+## Categories
+To find the best category to found a startup, we looked at the amount of funding and the categories that are withing top 500.
+```{r category exploration, message=FALSE, warning= FALSE}
 # Average amount of funding raised per category
-head(startup_data_process)
-startups_per_category_funding <- startup_data_process %>% group_by(category_code) %>% summarise(average_funding_amount = mean(funding_total_usd)) 
+head(startup_data)
+startups_per_category_funding <- startup_data %>% group_by(category_code) %>% summarise(average_funding_amount = mean(funding_total_usd)) 
 startups_per_category_funding%>% group_by(category_code) %>% select(average_funding_amount)%>%arrange(desc(average_funding_amount))%>%head(10)
 
 # No. of funding rounds per category 
-startups_per_category <- startup_data_process %>% group_by(category_code) %>% summarise(average_funding_rounds = mean(funding_rounds)) 
+startups_per_category <- startup_data %>% group_by(category_code) %>% summarise(average_funding_rounds = mean(funding_rounds)) 
 startups_per_category%>% group_by(category_code) %>% select(average_funding_rounds)%>%arrange(desc(average_funding_rounds))%>%head(10)
 
 # No. of milestones per category
-startups_per_category <- startup_data_process %>% group_by(category_code) %>% summarise(average_milestones = mean(milestones)) 
+startups_per_category <- startup_data %>% group_by(category_code) %>% summarise(average_milestones = mean(milestones)) 
 startups_per_category%>% group_by(category_code) %>% select(average_milestones)%>%arrange(desc(average_milestones))%>%head(10)
 
 # no. of startups in the 'top 500' list
-startups_per_category_500 <- startup_data_process %>% group_by(category_code) %>% summarise(in_top_500 = sum(is_top500)) 
+startups_per_category_500 <- startup_data %>% group_by(category_code) %>% summarise(in_top_500 = sum(is_top500)) 
 startups_per_category_500%>% group_by(category_code) %>% select(in_top_500)%>%arrange(desc(in_top_500))%>%head(10)
 
 
 # startup acquisition by category
- startup_acquisition <- startup_data_process %>% group_by(category_code)%>%summarise(total_acquired= sum(status=='acquired'), total_not_acquired = sum(status=='closed'))
+ startup_acquisition <- startup_data %>% group_by(category_code)%>%summarise(total_acquired= sum(status=='acquired'), total_not_acquired = sum(status=='closed'))
  startup_acquisition<-startup_acquisition %>% group_by(category_code) %>% arrange(desc(total_acquired))%>%head(10)
 
 # startup succes rate by category
- startup_success_rate <- startup_data_process %>% group_by(category_code)%>%summarise(total_acquired= sum(status=='acquired'), total_not_acquired = sum(status=='closed'))
+ startup_success_rate <- startup_data %>% group_by(category_code)%>%summarise(total_acquired= sum(status=='acquired'), total_not_acquired = sum(status=='closed'))
  startup_success_rate<-startup_success_rate %>% group_by(category_code) %>% arrange(desc(total_acquired))%>%head(10)
 startup_success_rate<- startup_success_rate %>%
   mutate(success_ratio=total_acquired/(total_acquired+total_not_acquired))%>%
@@ -529,23 +456,26 @@ startup_success_rate<- startup_success_rate %>%
  startup_success_rate
  
 # total funding rounds by category
- startups_acc_rounds <- startup_data_process%>% group_by(category_code)%>%summarise(round_A = sum(has_round_a), round_B=sum(has_round_b), round_C=sum(has_round_c), round_D = sum(has_round_d))
+ startups_acc_rounds <- startup_data%>% group_by(category_code)%>%summarise(round_A = sum(has_round_a), round_B=sum(has_round_b), round_C=sum(has_round_c), round_D = sum(has_round_d))
  startups_acc_rounds
  
-startups_per_category_tot_fund <- startup_data_process %>% group_by(category_code) %>% summarise(total_funding_rounds = sum(funding_rounds)) 
+startups_per_category_tot_fund <- startup_data %>% group_by(category_code) %>% summarise(total_funding_rounds = sum(funding_rounds)) 
 startups_per_category_tot_fund%>% group_by(category_code) %>% select(total_funding_rounds)%>%arrange(desc(total_funding_rounds))%>%head(10)
-
 
 ```
 
-After inspection on the above variables,we decide to focus on three main parameters that could measure the success of a startup: average funding raised, number of startups in top 500 list, number of acquired v.s. failed startups (success rate). By analysing the patterns in these three variables, we can look into what type of startups have higher chances to get funded, get acquired and develop into a large-scale company.
+Next we visualised the results
 
-```{r category chart}
-# Average amount of funding raised per category
-# To compare the absolute amount of average funding, bar chart(sorted in descending order) is the most straightforward way for human eyes to see the order and comparison
-funding_average <- startup_data_process %>%
+```{r, eval= FALSE, message=FALSE, warning= FALSE}
+#Average amount of funding raised per category
+#To compare the absolute amount of average funding, 
+#bar chart(sorted in descending order) is the most straightforward way 
+#for human eyes to see the order and comparison
+funding_average <- startup_data %>%
   group_by(category_code) %>%
-  summarise(average_funding = (mean(funding_total_usd))/1000000)%>%arrange(desc(average_funding))%>%head(10)
+  summarise(average_funding = (mean(funding_total_usd))/1000000)%>%
+  arrange(desc(average_funding))%>%
+  head(10)
 
 funding_average_plot <- funding_average %>% 
   ggplot(aes(x = average_funding, 
@@ -556,21 +486,21 @@ funding_average_plot <- funding_average %>%
   labs(title = "Mobile startups attract the most funding",
     subtitle = "Average Funding by Category",
        x = "Average Funding(in Millions)",
-      y="") + 
+       y="") + 
   scale_fill_manual(values=c("#1f6e8c"))+
   theme(axis.title.y = element_blank())+
-theme(
-    plot.title = element_text(face = "bold", size = 12),
-    plot.subtitle = element_text(face = "bold", size = 10, colour = "#4aaec0"),
-    plot.caption = element_text(face = "italic", size = 10)
-  )+
+  theme_minimal()+
   NULL
 
-funding_average_plot
+#no. of startups in the 'top 500' list
 
-# no. of startups in the 'top 500' list
-# To compare the absolute number of startups in the Top500 list, bar chart(sorted in descending order) is the most straightforward way for human eyes to see the order and comparison
-startups_per_category_500 <- startup_data_process %>% group_by(category_code) %>% summarise(in_top_500 = sum(is_top500)) %>%arrange(desc(in_top_500))%>%head(10)
+#To compare the absolute number of startups in the Top500 list, 
+#bar chart(sorted in descending order) is the most straightforward way 
+#for human eyes to see the order and comparison
+startups_per_category_500 <- startup_data %>% 
+  group_by(category_code) %>% summarise(in_top_500 = sum(is_top500)) %>%
+  arrange(desc(in_top_500))%>%
+  head(10)
 
 topp500_plot <- startups_per_category_500 %>% 
   ggplot(aes(x = in_top_500, 
@@ -584,33 +514,26 @@ topp500_plot <- startups_per_category_500 %>%
        y="") + 
   scale_fill_manual(values=c("#4aaec0"))+
   theme(axis.title.y = element_blank())+
-theme(
-    plot.title = element_text(face = "bold", size = 12),
-    plot.subtitle = element_text(face = "bold", size = 10, colour = "#4aaec0"),
-    plot.caption = element_text(face = "italic", size = 10)
-  )+
+  theme_minimal()+
   NULL
-
-topp500_plot
-
-```
-
-
-```{r startup success}
 
 # To compare the percentage of startups that are acquired compared to the total number of companies within each catgory, stacked bar chart with filling makes it easier to compare the proportion of categories of different scale.
 
-percentData <- startup_data_process %>% 
+percentData <- startup_data %>% 
   filter(category_code %in% startup_acquisition$category_code)%>%
   group_by(category_code) %>% 
   count(status,desc(status)) %>%
   mutate(ratio=scales::percent(n/sum(n), accuracy = 1L))
 
-startup_sucess_plot <- startup_data_process %>%
+startup_sucess_plot <- startup_data %>%
   filter(category_code %in% startup_acquisition$category_code)%>%
   ggplot(aes(fill = status, x = count(category_code), y = category_code)) + 
   geom_bar(position = "fill", stat = "identity") + 
-  geom_text(data = percentData, aes(x = n, label = ratio), stat = "identity", position = position_fill(vjust = 0.5)) +
+  geom_text(data = percentData, aes(x = n, 
+                                    label = ratio), 
+            stat = "identity", 
+            position = position_fill(vjust = 0.5)
+            ) +
   theme(axis.line.x = element_blank(),
     plot.title.position = "plot") +
   labs(title = "Analytics startups have the highest chance to succeed", 
@@ -618,42 +541,398 @@ startup_sucess_plot <- startup_data_process %>%
        x = "", 
        y = "",
        fill = "Status") + 
-  scale_fill_manual(values = c("#4aaec0","#ff5828")) +
-theme(
-    plot.title = element_text(face = "bold", size = 15),
-    plot.subtitle = element_text(face = "bold", size = 10, colour = "#4aaec0"),
-    plot.caption = element_text(face = "italic", size = 10)
-  )+
-    NULL
+  scale_fill_manual(values = c("#649c23","#a5a8b6")) +
+  theme_minimal()+
+  NULL
+
+topp500_plot
+funding_average_plot
 startup_sucess_plot
 ```
 
 
+## Location
+We mapped the number of startups in a heatmap to see where the highest concentration of startups in the US are. Also, we defined the success rate per state.
+```{r, message=FALSE, warning= FALSE}
+num_by_state <- startup_data %>% 
+  group_by(state_code) %>% 
+  summarise(count = n())
 
-## Location -> Rick, Mehdi
-make startups map, identifying the next Silicon Valley.
-maybe look at funding per state / success rate per state
-startups per population
 
-## Age: When should we aim to reach milestones and funding rounds? 
+counties_sf_heat <- counties_sf %>% 
+  left_join(num_by_state, by = c("state_abbv" = "state_code"))
+
+
+state_heatmap <- counties_sf_heat %>% 
+  ggplot(aes(fill = count)) +
+  geom_sf(aes(colours = "white")) +
+  scale_fill_gradient(low =  "#4aaec0", high = "#ff5828", na.value = "lightgrey") +
+  theme_minimal() +
+  coord_sf(datum = NA) +
+  labs(
+    title = "number of startups per state"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold", size = 40),
+    plot.subtitle = element_text(face = "bold", size = 30, colour = "#4aaec0"),
+    plot.caption = element_text(face = "italic", size = 13)
+  )
+
+
+success_state <- startup_data %>%
+  group_by(state_code, status) %>% 
+  summarise(count = n())
+
+#Create a geo_facet of success reates in each state.
+success_state_map <- ggplot(success_state, aes(
+    x = state_code,
+    y = count,
+    fill = status
+  )) +
+  geom_col(position = "fill") +
+  facet_geo(~ state_code, scales = "free") +
+    theme_minimal() +
+    coord_flip() +
+    theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) +
+  scale_fill_manual(values = c("#4aaec0", "#ff5828")) +
+  labs(
+    title = "success rate per state"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold", size = 40),
+    plot.subtitle = element_text(face = "bold", size = 30, colour = "#4aaec0"),
+    plot.caption = element_text(face = "italic", size = 13)
+  )
+  
+#Print the maps
+state_heatmap
+success_state_map
+
+```
+
+THe highest concentration of startups is unsurprisingly in California. The highest success rate has some surprising states however. Oregon, Massachussettes for example have a high success rate.
+
+## Time
+Trace the time pattern of New Startups and their milestones
+
+We want to take a look at which year these start-up companies were founded and met their first significant moments, and try to make a connection with macro-economic climate.
+
+### Foundation
+```{r founding years, fig.height=10, fig.width=15, message=FALSE, warning= FALSE}
+library(extrafont)
+loadfonts(device="win")
+my_colours <- c( "#1f6e8c", "#ff5828", "#131723", "#4aaec0", "#feeecd", "#1f6e8c", "#70756b")
+label1 <- "2001 Dot-com Bubble"
+label2 <- "2008 Financial Crisis"
+
+startup_data %>%
+  filter(year_founded >= 2000) %>%
+  group_by(year_founded) %>%
+  summarise(count = n()) %>%
+  mutate(crisis_year = if_else((year_founded == 2008 | year_founded == 2001) , TRUE, FALSE)) %>%
+  ggplot() +
+  geom_col(aes(x = year_founded, y = count, fill = crisis_year)) +
+  geom_text(
+    aes(
+      label = year_founded,
+      x = year_founded,
+      y = 0
+    ),
+    fontface = "bold",
+    size = 6,
+    vjust = -0.25,
+    colour = "white",
+    family = "Lato"
+  ) +
+  geom_curve(
+    data = data.frame(x = 2002, y = 82, xend = 2001, yend = 41),
+    mapping = aes(x = x, y = y, xend = xend, yend = yend),
+    colour = "grey15",
+    size = 0.5,
+    curvature = 0.25,
+    arrow = arrow(length = unit(2, "mm"), type = "closed"),
+    inherit.aes = FALSE
+  ) +
+  geom_text(
+    data = data.frame(x = 2002, y = 85, label = label1),
+    aes(x = x, y = y, label = label1),
+    colour="#FF6347",
+    family="Lato",
+    hjust = 0.5,
+    lineheight = .8,
+    inherit.aes = FALSE,
+    size = 7
+  ) +
+  geom_curve(
+    data = data.frame(x = 2011, y = 86, xend = 2008, yend = 86),
+    mapping = aes(x = x, y = y, xend = xend, yend = yend),
+    colour = "grey15",
+    size = 0.5,
+    curvature = 0.25,
+    arrow = arrow(length = unit(2, "mm"), type = "closed"),
+    inherit.aes = FALSE
+  ) +
+  geom_text(
+    data = data.frame(x = 2012.3, y = 86, label = label2),
+    aes(x = x, y = y, label = label2),
+    colour="#FF6347",
+    family="Lato",
+    hjust = 0.5,
+    lineheight = .8,
+    inherit.aes = FALSE,
+    size = 7
+  ) +
+  labs(
+    title = "Number of New Startups Drops During Economic Crisis",
+    subtitle = "Evidence from 2001 and post-2008",
+    caption = "Data source: https://www.kaggle.com/manishkc06/startup-success-prediction/notebooks"
+  ) +
+  scale_fill_manual(values = my_colours) +
+  scale_colour_manual(values = my_colours) +
+
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold", size = 40),
+    plot.subtitle = element_text(face = "bold", size = 30, colour = "#4aaec0"),
+    plot.caption = element_text(face = "italic", size = 13)
+  )
+```
+
+From the plot, we can see that macro-economic climate does have an effect on entrepreneur's confidence in starting a new business. There are two clear drops in 2001 and 2008, when the Dot-com Bubble and Sub-prime loan crises broke out.
+
+```{r founding by categories, fig.height=10, fig.width=15, message=FALSE, warning= FALSE}
+categories_names <- c("Advertising", "E-Commerce", "Games & Video", "Mobile", "Other", "Software", "Web")
+names(categories_names) <- c("advertising", "ecommerce", "games_video", "mobile", "other", "software", "web")
+
+my_colours <- c("#1f6e8c", "#ff5828", "#131723", "#4aaec0", "#feeecd", "#1f6e8c", "#70756b")
+
+startup_data %>%
+  filter(year_founded >= 2000) %>%
+  filter(category2 != "other_category") %>%
+  group_by(year_founded, category2) %>%
+  summarise(count = n()) %>%
+  mutate(crisis_year = if_else(year_founded == 2008 | year_founded == 2001, TRUE, FALSE)) %>%
+  ggplot() +
+  geom_col(aes(x = year_founded, y = count, fill = crisis_year)) +
+  scale_fill_manual(values = my_colours) +
+  scale_colour_manual(values = my_colours) +
+  facet_wrap(~category2, scales = "free_y", nrow = 2, strip.position = "bottom", labeller = labeller(category2 = categories_names)) +
+  labs(
+    title = "Number of New Startups: A Categorical Look",
+    subtitle = "Advertising, Software and Web are more sensitive to crisis",
+    caption = "Data source: https://www.kaggle.com/manishkc06/startup-success-prediction/notebooks"
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold", size = 40),
+    plot.subtitle = element_text(face = "bold", size = 30, colour = "#4aaec0"),
+    plot.caption = element_text(face = "italic", size = 13),
+    strip.text = element_text(size = 20, margin = margin(2,0,2,0))
+  )
+```
+
+The above figure displays how the number of new startups changes across categories. We can see that Advertising, Software, and Web companies were more affected by these two crises. We are then intrigued to ask: could there be a geographic pattern in the number of startups?
+
+```{r highlight two states, fig.height=10, fig.width=15, message=FALSE, warning= FALSE}
+ca_ny <- startup_data %>%
+  filter(year_founded >= 2000, state_code_1 == "CA" | state_code_1 == "NY") %>%
+  group_by(year_founded, state_code_1) %>%
+  summarise(count = n()) %>%
+  pivot_wider(names_from = state_code_1, values_from = count)
+  
+ca_ny %>% ggplot(aes(x=year_founded)) +
+  
+  geom_vline(xintercept = 2001, size = 25, colour = "#feeecd") +
+  geom_vline(xintercept = 2008, size = 25, colour = "#feeecd") +
+  
+  geom_line( aes(y=CA), size=2, color="#ff5828") +
+  geom_line( aes(y=NY*4), size=2, color="#1f6e8c") +
+  
+  geom_text(
+    aes(
+      label = "2008",
+      x = 2008,
+      y = 0
+    ),
+    fontface = "bold",
+    size = 6,
+    vjust = -0.25,
+    colour = "black",
+    family = "Lato"
+  ) +
+  geom_text(
+    aes(
+      label = "2001",
+      x = 2001,
+      y = 0
+    ),
+    fontface = "bold",
+    size = 6,
+    vjust = -0.25,
+    colour = "black",
+    family = "Lato"
+  ) +
+  geom_text(
+    data = data.frame(x = 2000, y = 32, label = "CA"),
+    aes(x = x, y = y, label = "CA"),
+    colour="#ff5828",
+    family="Lato",
+    hjust = 0.5,
+    lineheight = .8,
+    inherit.aes = FALSE,
+    size = 7
+  ) +
+  geom_text(
+    data = data.frame(x = 2000, y = 5, label = "NY"),
+    aes(x = x, y = y, label = "NY"),
+    colour="#1f6e8c",
+    family="Lato",
+    hjust = 0.5,
+    lineheight = .8,
+    inherit.aes = FALSE,
+    size = 7
+  ) +
+  scale_y_continuous(
+    # Add a second axis and specify its features
+    sec.axis = sec_axis(~.*0.25)
+  ) +
+  labs(
+    title = "Number of New Startups: New York VS California",
+    subtitle = "CA more sensitive to 2001 while NY more sensitive to 2008",
+    caption = "Data source: https://www.kaggle.com/manishkc06/startup-success-prediction/notebooks"
+  ) +
+  
+  theme_void() +
+
+  theme(
+    plot.title = element_text(face = "bold", size = 40),
+    plot.subtitle = element_text(face = "bold", size = 30, colour = "#4aaec0"),
+    plot.caption = element_text(face = "italic", size = 13)
+  )
+```
+
+We focus on new startups in California and New York State and find that CA is more sensitive to the 2001 crisis while NY is more sensitive to the 2008 one. This makes sense since the startup categories in California are more 'tech-related', therefore are more seriously influenced by the dot-com bubble. While in New York the categories are more complex, making it more vulnerable to a more widely-spread, cross-industries crisis.
+
+### Milestone
+
+```{r number of first milestones, fig.height=10, fig.width=15, message=FALSE, warning= FALSE}
+library(extrafont)
+loadfonts(device="win")
+my_colours <- c( "#1f6e8c", "#ff5828", "#131723", "#4aaec0", "#feeecd", "#1f6e8c", "#70756b")
+label1 <- "2001 Dot-com Bubble"
+label2 <- "2008 Financial Crisis"
+
+startup_data %>%
+  
+  mutate(first_milestone_date = founded_at + age_first_milestone_year,
+         year_first_milestone = year(first_milestone_date)) %>%
+  filter(year_first_milestone >= 2000) %>%
+  group_by(year_first_milestone) %>%
+  summarise(count = n()) %>%
+  mutate(crisis_year = if_else((year_first_milestone == 2008 | year_first_milestone == 2001) , TRUE, FALSE)) %>%
+  ggplot() +
+  geom_col(aes(x = year_first_milestone, y = count, fill = crisis_year)) +
+  geom_text(
+    aes(
+      label = year_first_milestone,
+      x = year_first_milestone,
+      y = 0
+    ),
+    fontface = "bold",
+    size = 6,
+    vjust = -0.25,
+    colour = "white",
+    family = "Lato"
+  ) +
+  geom_curve(
+    data = data.frame(x = 2002, y = 75, xend = 2001, yend = 34),
+    mapping = aes(x = x, y = y, xend = xend, yend = yend),
+    colour = "grey15",
+    size = 0.5,
+    curvature = 0.25,
+    arrow = arrow(length = unit(2, "mm"), type = "closed"),
+    inherit.aes = FALSE
+  ) +
+  geom_text(
+    data = data.frame(x = 2002, y = 77, label = label1),
+    aes(x = x, y = y, label = label1),
+    colour="#FF6347",
+    family="Lato",
+    hjust = 0.5,
+    lineheight = .8,
+    inherit.aes = FALSE,
+    size = 7
+  ) +
+  geom_curve(
+    data = data.frame(x = 2011, y = 77, xend = 2008, yend = 77),
+    mapping = aes(x = x, y = y, xend = xend, yend = yend),
+    colour = "grey15",
+    size = 0.5,
+    curvature = 0.25,
+    arrow = arrow(length = unit(2, "mm"), type = "closed"),
+    inherit.aes = FALSE
+  ) +
+  geom_text(
+    data = data.frame(x = 2012.3, y = 77, label = label2),
+    aes(x = x, y = y, label = label2),
+    colour="#FF6347",
+    family="Lato",
+    hjust = 0.5,
+    lineheight = .8,
+    inherit.aes = FALSE,
+    size = 7
+  ) +
+  labs(
+    title = "Number of First Milestones Shows Similar Patterns",
+    subtitle = "A Drop in 2001 and 2008",
+    caption = "Data source: https://www.kaggle.com/manishkc06/startup-success-prediction/notebooks"
+  ) +
+  scale_fill_manual(values = my_colours) +
+  scale_colour_manual(values = my_colours) +
+  
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold", size = 40),
+    plot.subtitle = element_text(face = "bold", size = 30, colour = "#4aaec0"),
+    plot.caption = element_text(face = "italic", size = 13)
+  )
+```
+
+We then check how the number of firms reach their first milestone changes across time. It turns out that the pattern is very similar to the number of new startups are founded - being significantly affected by two economic crises.
+
+## Age
+When should we aim to reach milestones and funding rounds? 
 
 Lastly, we want to get an idea of when we should aim to complete milestones as well as funding rounds.
 
 Overall, we try to answer the following two questions:
 - When do we have to reach our first (and last) milestones?
 - When do we have to reach our first (and last) funding round?
-```{r}
+```{r, message=FALSE, warning= FALSE}
 startup_data <- startup_data %>%
   filter(age_first_milestone_year>(-(6/12)))
 startup_data
 ```
 
 ### Milestone
-```{r setup milestones}
+```{r setup milestones, message=FALSE, warning= FALSE}
 # find the average age for the first milestones for successful and unsuccessful companies
 means_first_milestone <- startup_data %>%
   group_by(status) %>%
   summarise(means = mean(age_first_milestone_year, na.rm = TRUE))
+
+# extract the values
+means_first_milestone_acquired <- means_first_milestone$means[1]
+means_first_milestone_closed <- means_first_milestone$means[2]
+
 
 # extract the values
 means_first_milestone_acquired <- means_first_milestone$means[1]
@@ -668,12 +947,16 @@ means_last_milestone <- startup_data %>%
 means_last_milestone_acquired <- means_last_milestone$means[1]
 means_last_milestone_closed <- means_last_milestone$means[2]
 
+# extract the values
+means_last_milestone_acquired <- means_last_milestone$means[1]
+means_last_milestone_closed <- means_last_milestone$means[2]
+
 # define categories names for plots (do at beginning @Rick ?)
 categories_names <- c("Advertising", "E-Commerce", "Games & Video", "Mobile", "Other", "Software", "Web")
 names(categories_names) <- c("advertising", "ecommerce", "games_video", "mobile", "other", "software", "web")
 ```
 
-```{r plots milestones}  
+```{r plots milestones, message=FALSE, warning= FALSE}  
 # create plot for first milestones
 plot_time1 <- startup_data %>%
   filter(category2 != "other_category") %>%
@@ -693,6 +976,9 @@ plot_time1 <- startup_data %>%
        y = "",
        x = "Age of start-ups when reaching their first milestones") +
   NULL
+
+plot_time1
+
 
 plot_time1
 
@@ -724,7 +1010,7 @@ We conduct a t-test to understand the following question:
 Do successful start-ups reach their first milestone earlier than unsuccessful ones?
 
 
-```{r boxplot for t-test}
+```{r boxplot for t-test, message=FALSE, warning= FALSE}
 # boxplot to visualise
 milestone_plot <- ggplot(startup_data, aes(y = status, x = (age_first_milestone_year))) +
   geom_boxplot(aes(color = status), width = 0.3, show.legend = FALSE) +
@@ -739,10 +1025,13 @@ milestone_plot <- ggplot(startup_data, aes(y = status, x = (age_first_milestone_
 milestone_plot
 ```
 
-```{r t-test first_ms}
+```{r t-test first_ms, message=FALSE, warning= FALSE}
 # conduct the t-test
 test_ms_first <- t.test(age_first_milestone_year ~ status, 
         data = startup_data) 
+
+test_ms_first
+
 
 test_ms_first
 
@@ -755,12 +1044,16 @@ test_ms_first_tidy <- tidy(test_ms_first) %>%
 test_ms_first_tidy
 ```
 
-```{r t-test last_ms}
+```{r t-test last_ms, message=FALSE, warning= FALSE}
 # conduct the t-test
 test_ms_last <- t.test(age_last_milestone_year ~ status, 
         data = startup_data) 
 
 test_ms_last
+
+
+test_ms_last
+
 
 test_ms_last_tidy <- tidy(test_ms_last) %>% 
   # calculate the difference in means
@@ -780,7 +1073,7 @@ So, when do we have to reach our first milestone?
 On average we should reach our first milestone after 3.362
 
 However, since we defined before that we would like to go into the mobile industry, we will look at the mean there as well for first and last mile stones:
-```{r}
+```{r, message=FALSE, warning= FALSE}
 ideal_category <- "mobile"
 
 means_first_milestone_category <- startup_data %>%
@@ -791,30 +1084,23 @@ means_first_milestone_category <- startup_data %>%
   arrange(desc(means_category))
 
 means_first_milestone_category
-
 means_last_milestone_category <- startup_data %>%
   filter(category2 == ideal_category) %>% # depending on which industry we want to go in 
   group_by(category2, status) %>%
   summarise(means_category = mean(age_last_milestone_year, na.rm = TRUE),
             sd_category = sd(age_last_milestone_year, na.rm = TRUE)) %>%
   arrange(desc(means_category))
-
 means_last_milestone_category
-
 ideal_first_milestone_age <- means_first_milestone_category$means_category[1]  
 ideal_last_milestone_age <- means_last_milestone_category$means_category[1] 
-
 print(paste0("Target age for our first milestone: ", round(ideal_first_milestone_age, 2), " years"))
 print(paste0("Target age for our last milestone: ", round(ideal_last_milestone_age, 2), " years"))
-
 ```
-
-
 
 
 ### Funding
 After looking at the target age for milestones, we also look at the target age for different funding rounds. 
-```{r setup funding}
+```{r setup funding, message=FALSE, warning= FALSE}
 # find the average age for the first funding for successful and unsuccessful companies
 means_first_funding <- startup_data %>%
   group_by(status) %>%
@@ -834,7 +1120,7 @@ means_last_funding_acquired <- means_last_funding$means[1]
 means_last_funding_closed <- means_last_funding$means[2]
 ```
 
-```{r first funding}
+```{r first funding, message=FALSE, warning= FALSE}
 # same thing as above
 plot_time3 <- startup_data %>%
   filter(category2 != "other_category") %>%
@@ -882,7 +1168,7 @@ plot_time4 <- startup_data %>%
 ```
 
 
-```{r t-test first funding}
+```{r t-test first funding, message=FALSE, warning= FALSE}
 test_fg_first <- t.test(age_first_funding_year ~ status, 
         data = startup_data) 
 test_fg_first
@@ -896,7 +1182,7 @@ test_fg_first_tidy <- tidy(test_fg_first) %>%
 test_fg_first_tidy
 ```
 
-```{r t-test last funding}
+```{r t-test last funding, message=FALSE, warning= FALSE}
 test_fg_last <- t.test(age_last_funding_year ~ status, 
         data = startup_data) 
 test_fg_last
@@ -913,7 +1199,7 @@ test_fg_last_tidy
 However, at the 2%, there is no difference in age for the first funding between successful and unsuccessful start-ups. The same occurs for the last funding round age.
 
 Based on this, we will just take the average funding
-```{r}
+```{r, message=FALSE, warning= FALSE}
 ideal_category <- "mobile"
 
 means_first_funding_category <- startup_data %>%
@@ -943,7 +1229,7 @@ print(paste0("Target age for our last funding: ", round(ideal_last_funding_age, 
 ### Timeline
 With all these insights gained, we will now create a basic overview for our milestones and funding rounds that we are aiming to reach with our start-up.
 
-```{r}
+```{r, message=FALSE, warning= FALSE}
 # create a new dataframe with the dates, assuming we will start our start-up today
 date_founded_at <- today ()
 date_first_funding <- today() + ideal_first_funding_age * 365
@@ -965,14 +1251,14 @@ start_up_timeline <- start_up_timeline %>%
 
 ```
 
-```{r}
+```{r, message=FALSE, warning= FALSE}
 category_levels <- c("Foundation", "Funding", "Milestone")
 category_colors <- c("#1f6e8c", "#ff5828", "#4aaec0")
 
 start_up_timeline$category <- factor(start_up_timeline$category, levels = category_levels, ordered = TRUE)
 ```
 
-```{r}
+```{r, message=FALSE, warning= FALSE}
 text_offset <- 0.05
 
 start_up_timeline$month_count <- ave(start_up_timeline$date == start_up_timeline$date, 
@@ -981,7 +1267,7 @@ start_up_timeline$month_count <- ave(start_up_timeline$date == start_up_timeline
 start_up_timeline$text_position <- (start_up_timeline$month_count * text_offset * start_up_timeline$direction) + start_up_timeline$position
 ```
 
-```{r}
+```{r, message=FALSE, warning= FALSE}
 month_buffer <- 2
 
 month_date_range <- seq(min(start_up_timeline$date) - months(month_buffer), max(start_up_timeline$date) + months(month_buffer), by = "month")
@@ -989,7 +1275,7 @@ month_format <- format(month_date_range, "%b")
 month_df <- data.frame(month_date_range, month_format)
 ```
 
-```{r}
+```{r, message=FALSE, warning= FALSE}
 year_date_range <- seq(min(start_up_timeline$date) - 
                          months(month_buffer), max(start_up_timeline$date) + 
                          months(month_buffer), by = "year")
@@ -1004,7 +1290,7 @@ year_format <- format(year_date_range, '%Y')
 year_df <- data.frame(year_date_range, year_format)
 ```
 
-```{r, fig.width = 5, fig.height = 2}
+```{r, fig.width = 5, fig.height = 2, message=FALSE, warning= FALSE}
 # plotting the timeline
 timeline_plot<-ggplot(start_up_timeline, 
                       aes(x = date,y = 0, col = category, label = milestone)) +
@@ -1040,56 +1326,3 @@ timeline_plot<-ggplot(start_up_timeline,
 
 timeline_plot
 ```
-
-
-
-
-
-# Prediction 
-model: Predict a startup's future based on its current characteristics
-data modelling to select the features that might influence startups funding and outcomes.
-### Logistic regression to predict status
-```{r}
-
-startup_data_select <- startup_data %>%
-  mutate(status = ifelse(status == "acquired", 1, 0))
-
-```
-
-```{r}
-# we select only the relevant variables
-set.seed(1212)
-
-train_test_split <- initial_split(startup_data_select, prop = 0.8) #training set contains 80% of the data
-
-# Create the training and testing datasets
-training <- training(train_test_split)
-testing <- testing(train_test_split)
-```
-
-just playing around with the model (will tune further if necessary)
-```{r}
-
-
-status_logreg <- glm(status ~ 
-                           avg_participants + 
-                           age_first_milestone_year + 
-                           age_last_milestone_year + 
-                           year_founded +
-                           relationships + 
-                           funding_rounds +
-                           log(funding_total_usd) +
-                           is_mobile +
-                           is_ca +
-                           milestones, data = training, family = "binomial")
-summary(status_logreg)
-```
-
-
-
-# try with LASSO maybe?
-
-
-
-
-
