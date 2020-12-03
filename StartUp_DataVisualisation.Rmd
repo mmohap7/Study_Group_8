@@ -497,7 +497,7 @@ leaflet() %>%
 ## Category -> Melonica, Jun
 We explore a few variables by category to see what  criteria we could utilize to predict which categories of startups are more likely to be successful. We look into average funding raised, number of funding rounds, number of milestones, number of startups in top 500 list, number of acquired v.s. failed startups, and total funding.
 
-```{r}
+```{r category exploration}
 # Average amount of funding raised per category
 head(startup_data_process)
 startups_per_category_funding <- startup_data_process %>% group_by(category_code) %>% summarise(average_funding_amount = mean(funding_total_usd)) 
@@ -540,7 +540,7 @@ startups_per_category_tot_fund%>% group_by(category_code) %>% select(total_fundi
 
 After inspection on the above variables,we decide to focus on three main parameters that could measure the success of a startup: average funding raised, number of startups in top 500 list, number of acquired v.s. failed startups (success rate). By analysing the patterns in these three variables, we can look into what type of startups have higher chances to get funded, get acquired and develop into a large-scale company.
 
-```{r}
+```{r category chart}
 # Average amount of funding raised per category
 # To compare the absolute amount of average funding, bar chart(sorted in descending order) is the most straightforward way for human eyes to see the order and comparison
 funding_average <- startup_data_process %>%
@@ -559,7 +559,11 @@ funding_average_plot <- funding_average %>%
       y="") + 
   scale_fill_manual(values=c("#1f6e8c"))+
   theme(axis.title.y = element_blank())+
-  theme_minimal()+
+theme(
+    plot.title = element_text(face = "bold", size = 12),
+    plot.subtitle = element_text(face = "bold", size = 10, colour = "#4aaec0"),
+    plot.caption = element_text(face = "italic", size = 10)
+  )+
   NULL
 
 funding_average_plot
@@ -580,10 +584,19 @@ topp500_plot <- startups_per_category_500 %>%
        y="") + 
   scale_fill_manual(values=c("#4aaec0"))+
   theme(axis.title.y = element_blank())+
-  theme_minimal()+
+theme(
+    plot.title = element_text(face = "bold", size = 12),
+    plot.subtitle = element_text(face = "bold", size = 10, colour = "#4aaec0"),
+    plot.caption = element_text(face = "italic", size = 10)
+  )+
   NULL
 
 topp500_plot
+
+```
+
+
+```{r startup success}
 
 # To compare the percentage of startups that are acquired compared to the total number of companies within each catgory, stacked bar chart with filling makes it easier to compare the proportion of categories of different scale.
 
@@ -593,7 +606,7 @@ percentData <- startup_data_process %>%
   count(status,desc(status)) %>%
   mutate(ratio=scales::percent(n/sum(n), accuracy = 1L))
 
-pbar5 <- startup_data_process %>%
+startup_sucess_plot <- startup_data_process %>%
   filter(category_code %in% startup_acquisition$category_code)%>%
   ggplot(aes(fill = status, x = count(category_code), y = category_code)) + 
   geom_bar(position = "fill", stat = "identity") + 
@@ -605,14 +618,15 @@ pbar5 <- startup_data_process %>%
        x = "", 
        y = "",
        fill = "Status") + 
-  scale_fill_manual(values = c("#649c23","#a5a8b6")) +
-  theme_minimal()+
-  NULL
-pbar5
-
+  scale_fill_manual(values = c("#4aaec0","#ff5828")) +
+theme(
+    plot.title = element_text(face = "bold", size = 15),
+    plot.subtitle = element_text(face = "bold", size = 10, colour = "#4aaec0"),
+    plot.caption = element_text(face = "italic", size = 10)
+  )+
+    NULL
+startup_sucess_plot
 ```
-
-
 
 
 
