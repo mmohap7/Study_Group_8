@@ -232,7 +232,7 @@ startup_data_process$state_code_1 <- ifelse(is.na(startup_data_process$state_cod
 ```
 
 
-After the data cleaning we will assign it back to the original data set and then start our exploratory data analysis. We will treat any outliers as we go through the EDA.
+After the data cleaning we have assigned it back to the original data set and then start our exploratory data analysis. We will treat any outliers as we go through the EDA.
 ```{r}
 # assign the cleaned data back to the original data set so that we can work
 startup_data <- startup_data_process
@@ -245,7 +245,7 @@ startup_data <- startup_data_process
 We checked the numerical variables on outliers and wrong data. For this we look at the describe and skim function used above.
 
 ### Funding Amount
-First, we looked into the distribution of the funding amount. It is highly right-skewed, which is why we take the log
+First, we looked into the distribution of the funding amount. It is highly right-skewed, which is why we chose to also visualise this with a log function to check the distribution
 ```{r}
 
 #Create a boxplot for the total funding
@@ -287,14 +287,20 @@ startup_data_process %>%
   arrange(funding_total_usd) %>% 
   head(10)
 ```
-Looking at the funding total, there are some outliers. These do not seem unjustified, so we will not do anything with them here.
+
+Looking at the funding total, there are some outliers. These do not seem unjustified, after looking these companies up, so we left them as they were.
 
 ### Funding rounds
 ```{r}
 # startups according to funding round
 startup_data %>% 
   group_by(funding_rounds) %>% 
-  summarise(count_funding=n())
+  summarise(count_funding=n()) %>% 
+  ggplot(aes(
+    x = funding_rounds,
+    y = count_funding
+  )) +
+  geom_col()
 ```
 
 
