@@ -489,40 +489,115 @@ leaflet() %>%
 # Visualisations
 
 ## Category -> Melonica, Jun
-Which categories are most successful / get most funding? or similar
-
-
-Josi: I already played with this, maybe you can use it:
-Which industry receives the most total funding?
+We explore a few variables by category to see if there are certain criteria we could utilize to determine which categories of startups are more likely to get funded, get acquired and develop into a large-scale company.
 
 ```{r}
-funding_total <- startup_data %>%
-  group_by(category1) %>%
-  summarise(total_funding = (sum(funding_total_usd))/1000000) 
+# Average amount of funding raised per category
+head(startup_data_process)
+startups_per_category_funding <- startup_data_process %>% group_by(category_code) %>% summarise(average_funding_amount = mean(funding_total_usd)) 
+startups_per_category_funding%>% group_by(category_code) %>% select(average_funding_amount)%>%arrange(desc(average_funding_amount))%>%head(10)
 
-funding_total_plot <- funding_total %>% 
-  ggplot(aes(x = total_funding, y = reorder(category1, total_funding), fill = category1)) +
-  geom_bar(stat="identity")
+# No. of funding rounds per category 
+startups_per_category <- startup_data_process %>% group_by(category_code) %>% summarise(average_funding_rounds = mean(funding_rounds)) 
+startups_per_category%>% group_by(category_code) %>% select(average_funding_rounds)%>%arrange(desc(average_funding_rounds))%>%head(10)
 
-funding_total_plot
-# funding in millions
+# No. of milestones per category
+startups_per_category <- startup_data_process %>% group_by(category_code) %>% summarise(average_milestones = mean(milestones)) 
+startups_per_category%>% group_by(category_code) %>% select(average_milestones)%>%arrange(desc(average_milestones))%>%head(10)
+
+# no. of startups in the 'top 500' list
+startups_per_category_500 <- startup_data_process %>% group_by(category_code) %>% summarise(in_top_500 = sum(is_top500)) 
+startups_per_category_500%>% group_by(category_code) %>% select(in_top_500)%>%arrange(desc(in_top_500))%>%head(10)
+
+# startup failure rate by category
+ startup_failure_rate <- startup_data_process %>% group_by(category_code)%>%summarise(total_acquired= sum(status=='acquired'), total_not_acquired = sum(status=='closed'))
+ startup_failure_rate %>% group_by(category_code) %>% arrange(desc(total_acquired))%>%head(10)
+ 
+# CHART FOR BEING FUNDED BY ROUNDS
+ startups_acc_rounds <- startup_data_process%>% group_by(category_code)%>%summarise(round_A = sum(has_round_a), round_B=sum(has_round_b), round_C=sum(has_round_c), round_D = sum(has_round_d))
+ startups_acc_rounds
+ 
+ startups_per_category_tot_fund <- startup_data_process %>% group_by(category_code) %>% summarise(total_funding_rounds = sum(funding_rounds)) 
+startups_per_category_tot_fund%>% group_by(category_code) %>% select(total_funding_rounds)%>%arrange(desc(total_funding_rounds))%>%head(10)
+
+
 ```
 
 
-
-Which industry receives the most funding on average?
 ```{r}
-funding_average <- startup_data %>%
-  group_by(category1) %>%
-  summarise(average_funding = (mean(funding_total_usd))/1000000) 
+# Average amount of funding raised per category
+funding_average <- startup_data_process %>%
+  group_by(category_code) %>%
+  summarise(average_funding = (mean(funding_total_usd))/1000000)%>%arrange(desc(average_funding))%>%head(10)
 
 funding_average_plot <- funding_average %>% 
-  ggplot(aes(x = average_funding, y = reorder(category1, average_funding), fill = category1)) +
-  geom_bar(stat="identity")
+  ggplot(aes(x = average_funding, 
+             y = reorder(category_code, 
+                         average_funding), 
+             fill = category_code)) +
+  geom_bar(stat="identity",fill="#1f6e8c") + 
+  labs(title = "Mobile startups attract the most funding",
+    subtitle = "Average Funding by Category",
+       x = "Average Funding(in Millions)",
+      y="") + 
+  scale_fill_manual(values=c("#1f6e8c"))+
+  theme(axis.title.y = element_blank())+
+  theme_minimal()+
+  NULL
 
 funding_average_plot
-# funding in millions
+
+
+# no. of startups in the 'top 500' list
+startups_per_category_500 <- startup_data_process %>% group_by(category_code) %>% summarise(in_top_500 = sum(is_top500)) %>%arrange(desc(in_top_500))%>%head(10)
+
+
+topp500_plot <- startups_per_category_500 %>% 
+  ggplot(aes(x = in_top_500, 
+             y = reorder(category_code, 
+                         in_top_500), 
+             fill = category_code)) +
+  geom_bar(stat="identity",fill="#4aaec0") + 
+  labs(title = "Software startups are the most represented in Top 500 List",
+       subtitle = "Companies in Top 500 by Category",
+       x = "Number of companies",
+       y="") + 
+  scale_fill_manual(values=c("#4aaec0"))+
+  theme(axis.title.y = element_blank())+
+  theme_minimal()+
+  NULL
+
+topp500_plot
+
+
+success_rate <- startup_data %>% 
+  group_by(category2, status) %>% 
+  summarise(count = n())
+
+success_rate_plot <- success_rate %>% ggplot(aes(
+    y = count/sum(count)*1000,
+  x = category2,
+    fill = reorder(status, desc(status))
+  )) +
+  geom_col(position="fill") +
+  coord_flip() +
+  scale_fill_manual(values = c("#a5a8b6", "#649c23")) +
+  labs(fill = "Status",
+       x="",
+  y="Success Rate",
+  title = "Advertising startups have the highest chance to succeed",
+       subtitle = "Startup Success Rate by Category") + 
+  theme(axis.title.x = element_blank())+
+#geom_text(aes(x=category2,label = ratio), position = position_fill(vjust = 0.5))+
+  theme_minimal()+
+  NULL
+success_rate_plot
+
 ```
+
+
+
+
 
 ## Location -> Rick, Mehdi
 make startups map, identifying the next Silicon Valley.
