@@ -489,7 +489,7 @@ leaflet() %>%
 # Visualisations
 
 ## Category -> Melonica, Jun
-We explore a few variables by category to see if there are certain criteria we could utilize to determine which categories of startups are more likely to get funded, get acquired and develop into a large-scale company.
+We explore a few variables by category to see what  criteria we could utilize to predict which categories of startups are more likely to be successful. We look into average funding raised, number of funding rounds, number of milestones, number of startups in top 500 list, number of acquired v.s. failed startups, and total funding.
 
 ```{r}
 # Average amount of funding raised per category
@@ -509,23 +509,29 @@ startups_per_category%>% group_by(category_code) %>% select(average_milestones)%
 startups_per_category_500 <- startup_data_process %>% group_by(category_code) %>% summarise(in_top_500 = sum(is_top500)) 
 startups_per_category_500%>% group_by(category_code) %>% select(in_top_500)%>%arrange(desc(in_top_500))%>%head(10)
 
-# startup failure rate by category
- startup_failure_rate <- startup_data_process %>% group_by(category_code)%>%summarise(total_acquired= sum(status=='acquired'), total_not_acquired = sum(status=='closed'))
- startup_failure_rate %>% group_by(category_code) %>% arrange(desc(total_acquired))%>%head(10)
+# startup succes rate by category
+ startup_success_rate <- startup_data_process %>% group_by(category_code)%>%summarise(total_acquired= sum(status=='acquired'), total_not_acquired = sum(status=='closed'))
+ startup_success_rate<-startup_success_rate %>% group_by(category_code) %>% arrange(desc(total_acquired))%>%head(10)
+startup_success_rate<- startup_success_rate %>%
+  mutate(success_ratio=total_acquired/(total_acquired+total_not_acquired))%>%
+   arrange(desc(success_ratio))
+ startup_success_rate
  
-# CHART FOR BEING FUNDED BY ROUNDS
+# total funding rounds by category
  startups_acc_rounds <- startup_data_process%>% group_by(category_code)%>%summarise(round_A = sum(has_round_a), round_B=sum(has_round_b), round_C=sum(has_round_c), round_D = sum(has_round_d))
  startups_acc_rounds
  
- startups_per_category_tot_fund <- startup_data_process %>% group_by(category_code) %>% summarise(total_funding_rounds = sum(funding_rounds)) 
+startups_per_category_tot_fund <- startup_data_process %>% group_by(category_code) %>% summarise(total_funding_rounds = sum(funding_rounds)) 
 startups_per_category_tot_fund%>% group_by(category_code) %>% select(total_funding_rounds)%>%arrange(desc(total_funding_rounds))%>%head(10)
 
 
 ```
 
+After inspection on the above variables,we decide to focus on three main parameters that could measure the success of a startup: average funding raised, number of startups in top 500 list, number of acquired v.s. failed startups (success rate). By analysing the patterns in these three variables, we can look into what type of startups have higher chances to get funded, get acquired and develop into a large-scale company.
 
 ```{r}
 # Average amount of funding raised per category
+# To compare the absolute amount of average funding, bar chart(sorted in descending order) is the most straightforward way for human eyes to see the order and comparison
 funding_average <- startup_data_process %>%
   group_by(category_code) %>%
   summarise(average_funding = (mean(funding_total_usd))/1000000)%>%arrange(desc(average_funding))%>%head(10)
@@ -549,8 +555,8 @@ funding_average_plot
 
 
 # no. of startups in the 'top 500' list
+# To compare the absolute number of startups in the Top500 list, bar chart(sorted in descending order) is the most straightforward way for human eyes to see the order and comparison
 startups_per_category_500 <- startup_data_process %>% group_by(category_code) %>% summarise(in_top_500 = sum(is_top500)) %>%arrange(desc(in_top_500))%>%head(10)
-
 
 topp500_plot <- startups_per_category_500 %>% 
   ggplot(aes(x = in_top_500, 
@@ -569,29 +575,47 @@ topp500_plot <- startups_per_category_500 %>%
 
 topp500_plot
 
-
+# To compare the percentage of startups that are acquired compared to the total number of companies within each catgory, stacked bar chart with filling makes it easier to compare the proportion of categories of different scale.
 success_rate <- startup_data %>% 
   group_by(category2, status) %>% 
   summarise(count = n())
 
-success_rate_plot <- success_rate %>% ggplot(aes(
+success_rate_plot <- success_rate %>% 
+  ggplot(aes(
     y = count/sum(count)*1000,
-  x = category2,
+    x = reorder(category2,count/sum(count)*1000),
     fill = reorder(status, desc(status))
-  )) +
+   )) +
   geom_col(position="fill") +
+  coord_flip() +
+  scale_fill_manual(values = c("#a5a8b6", "#649c23")) +
+  labs(fill = "Status",
+  y="Success Rate",
+  title = "Advertising startups have the highest chance to succeed",
+       subtitle = "Startup Success Rate by Category") + 
+  theme(axis.title.y = element_blank())+
+#geom_text(aes(x=category2,label = ratio), position = position_fill(vjust = 0.5))+
+  NULL
+success_rate_plot
+
+
+
+success_rate_plot2 <- startup_success_rate %>% 
+  ggplot(aes(
+    y = success_ratio,
+    x = category_code,
+    fill = category_code)) +
+  geom_bar(stat="identity",fill="#4aaec0",position = "dodge") + 
   coord_flip() +
   scale_fill_manual(values = c("#a5a8b6", "#649c23")) +
   labs(fill = "Status",
        x="",
   y="Success Rate",
-  title = "Advertising startups have the highest chance to succeed",
+  title = "Analytics startups have the highest chance to succeed",
        subtitle = "Startup Success Rate by Category") + 
-  theme(axis.title.x = element_blank())+
-#geom_text(aes(x=category2,label = ratio), position = position_fill(vjust = 0.5))+
   theme_minimal()+
   NULL
-success_rate_plot
+success_rate_plot2
 
 ```
 
